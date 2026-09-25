@@ -1,0 +1,109 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ r.name if r else 'Novo rancho' }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>{{ r.name if r else 'Novo rancho' }}</h1>
+  {% if r %}<div class="actions"><a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a></div>{% endif %}
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form edit-form" id="edit-form">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+  <fieldset>
+    <legend>Anúncio</legend>
+    <label>Nome do rancho <input name="name" required maxlength="120" value="{{ r.name if r else '' }}" placeholder="Rancho Pôr do Sol"></label>
+    <div class="cols-2">
+      <label>Localização <input name="region" maxlength="120" value="{{ r.region if r else '' }}" placeholder="Bairro, estrada ou condomínio"></label>
+      <label>Link do Google Maps <span class="muted">(opcional)</span><input name="maps_url" maxlength="500" value="{{ r.maps_url if r else '' }}" placeholder="https://maps.app.goo.gl/..."></label>
+    </div>
+    <label>Frase curta para o card <input name="summary" maxlength="200" value="{{ r.summary if r else '' }}" placeholder="Deck na beira d'água e vista para o pôr do sol."></label>
+    <label>Descrição <span class="muted">(linha em branco separa parágrafos)</span><textarea name="description" rows="6">{{ r.description if r else '' }}</textarea></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Estrutura</legend>
+    <div class="cols-4">
+      <label>Pessoas <input name="capacity" inputmode="numeric" value="{{ r.capacity if r and r.capacity else '' }}"></label>
+      <label>Quartos <input name="bedrooms" inputmode="numeric" value="{{ r.bedrooms if r and r.bedrooms else '' }}"></label>
+      <label>Banheiros <input name="bathrooms" inputmode="numeric" value="{{ r.bathrooms if r and r.bathrooms else '' }}"></label>
+      <label>Mín. diárias <input name="min_nights" inputmode="numeric" value="{{ r.min_nights if r else 1 }}"></label>
+    </div>
+    <label>Camas <input name="beds" maxlength="160" value="{{ r.beds if r else '' }}" placeholder="3 casal, 6 solteiro, 2 beliches"></label>
+    <div class="amen-grid">
+      {% for key, a in AMENITIES.items() %}
+      <label class="check"><input type="checkbox" name="amenities" value="{{ key }}" {% if r and key in r.amenity_list %}checked{% endif %}> {{ a[1] }} {{ a[0] }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Preços e regras</legend>
+    <div class="cols-3">
+      <label>Diária (R$) <input name="price_night" inputmode="numeric" value="{{ r.price_night if r and r.price_night else '' }}" placeholder="900"></label>
+      <label>Fim de semana (R$) <input name="price_weekend" inputmode="numeric" value="{{ r.price_weekend if r and r.price_weekend else '' }}" placeholder="1700"></label>
+      <label>Feriados <input name="price_holiday" maxlength="160" value="{{ r.price_holiday if r else '' }}" placeholder="Pacote 3 diárias R$ 2.800"></label>
+    </div>
+    <div class="cols-2">
+      <label>Entrada <input name="checkin" maxlength="20" value="{{ r.checkin if r else '' }}" placeholder="14h"></label>
+      <label>Saída <input name="checkout" maxlength="20" value="{{ r.checkout if r else '' }}" placeholder="12h"></label>
+    </div>
+    <label>Regras <span class="muted">(uma por linha)</span><textarea name="rules" rows="4">{{ r.rules if r else '' }}</textarea></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Dono</legend>
+    <div class="cols-2">
+      <label>Nome <input name="owner_name" maxlength="120" value="{{ r.owner_name if r else '' }}"></label>
+      <label>WhatsApp com DDD <input name="owner_whatsapp" maxlength="30" value="{{ r.owner_whatsapp if r else '' }}" placeholder="(16) 99999-9999"></label>
+    </div>
+    <p class="muted small">O número não aparece no site. O botão passa pelo site antes de abrir o WhatsApp, para contar os contatos.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Publicação</legend>
+    <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Aparece no site</label>
+    <label class="check"><input type="checkbox" name="featured" {% if r and r.featured %}checked{% endif %}> Destaque (topo da lista)</label>
+    <label class="check"><input type="checkbox" name="verified" {% if r and r.verified %}checked{% endif %}> Verificado (visitei e confirmei o dono)</label>
+    {% if r %}<label class="check"><input type="checkbox" name="regen_slug"> Atualizar o link com o nome novo <span class="muted">(link atual: /rancho/{{ r.slug }})</span></label>{% endif %}
+  </fieldset>
+
+  <fieldset id="fotos">
+    <legend>Fotos</legend>
+    <label class="upload">
+      <input type="file" name="photos" accept="image/*" multiple id="photo-input">
+      <span>Escolher fotos</span>
+      <small class="muted" id="photo-count">Pode selecionar várias de uma vez. A primeira foto vira a capa.</small>
+    </label>
+  </fieldset>
+
+  <div class="sticky-save"><button class="btn btn-sun">Salvar rancho</button></div>
+</form>
+
+{% if r and r.photos %}
+<ul class="photo-grid">
+  {% for p in r.photos %}
+  <li>
+    <img src="{{ url_for('image', pid=p.id, s='t') }}" alt="" loading="lazy">
+    {% if loop.first %}<span class="badge badge-sun">Capa</span>{% endif %}
+    <div class="photo-actions">
+      {% for action, label in [('esquerda', '←'), ('direita', '→'), ('capa', 'Capa'), ('excluir', 'Excluir')] %}
+        {% if not (action == 'capa' and loop.first) %}
+        <form method="post" action="{{ url_for('admin_photo', rid=r.id, pid=p.id, action=action) }}" {% if action == 'excluir' %}data-confirm="Excluir esta foto?"{% endif %}>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="{% if action == 'excluir' %}danger{% endif %}">{{ label }}</button>
+        </form>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if r %}
+<form method="post" action="{{ url_for('admin_delete', rid=r.id) }}" class="danger-zone" data-confirm="Excluir {{ r.name }} para sempre? Fotos e estatísticas também serão apagadas.">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <button class="btn btn-outline danger">Excluir rancho</button>
+</form>
+{% endif %}
+{% endblock %}

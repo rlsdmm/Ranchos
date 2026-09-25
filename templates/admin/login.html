@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+<div class="form-card narrow">
+  <h1>Entrar no painel</h1>
+  <form method="post" class="form">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Senha <input type="password" name="password" required autofocus autocomplete="current-password"></label>
+    <button class="btn btn-dark btn-block">Entrar</button>
+  </form>
+</div>
+{% endblock %}

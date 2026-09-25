@@ -1,0 +1,71 @@
+{% extends "admin/base.html" %}
+{% block title %}Painel{% endblock %}
+{% block content %}
+<h1>Últimos 30 dias</h1>
+<div class="kpis">
+  <div class="kpi"><strong>{{ totals.views }}</strong><span>visitas nos anúncios</span></div>
+  <div class="kpi"><strong>{{ totals.whatsapp }}</strong><span>cliques no WhatsApp dos donos</span></div>
+  <div class="kpi"><strong>{{ totals.servico }}</strong><span>pedidos de cozinheira/faxina</span></div>
+  <div class="kpi"><strong>{{ leads|selectattr('handled', 'equalto', false)|list|length }}</strong><span>donos querendo anunciar</span></div>
+</div>
+
+<h2>Ranchos</h2>
+{% if ranchos %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th>No site</th><th>Destaque</th><th>Verificado</th><th></th></tr></thead>
+  <tbody>
+  {% for r in ranchos %}
+    <tr class="{% if not r.active %}off{% endif %}">
+      <td>
+        <a href="{{ url_for('admin_edit', rid=r.id) }}" class="strong">{{ r.name }}</a>
+        <div class="muted small">{{ r.photos|length }} fotos{% if r.region %}, {{ r.region }}{% endif %}</div>
+      </td>
+      <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
+      <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
+      {% for field, on in [('active', r.active), ('featured', r.featured), ('verified', r.verified)] %}
+      <td>
+        <form method="post" action="{{ url_for('admin_toggle', rid=r.id, field=field) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="toggle {% if on %}on{% endif %}" aria-pressed="{{ 'true' if on else 'false' }}">{{ 'Sim' if on else 'Não' }}</button>
+        </form>
+      </td>
+      {% endfor %}
+      <td><div class="actions">
+        <a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>
+        <a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver ↗</a>
+      </div></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <div class="empty"><p>Nenhum rancho ainda.</p><a class="btn btn-dark" href="{{ url_for('admin_edit') }}">Cadastrar o primeiro</a></div>
+{% endif %}
+
+<h2 id="pedidos">Donos que querem anunciar</h2>
+{% if leads %}
+<ul class="leads">
+  {% for l in leads %}
+  <li class="lead {% if l.handled %}done{% endif %}">
+    <div>
+      <p class="strong">{{ l.name }}{% if l.rancho_name %}, {{ l.rancho_name }}{% endif %}</p>
+      <p class="muted small">{{ l.created_at|local }}{% if l.region %}, {{ l.region }}{% endif %}</p>
+      {% if l.message %}<p>{{ l.message }}</p>{% endif %}
+    </div>
+    <div class="lead-actions">
+      {% set digits = l.phone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '')|replace('+', '') %}
+      <a class="btn btn-zap btn-sm" href="https://wa.me/{{ digits if digits.startswith('55') else '55' ~ digits }}" target="_blank" rel="noopener">{{ l.phone }}</a>
+      <form method="post" action="{{ url_for('admin_lead', lid=l.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm">{{ 'Reabrir' if l.handled else 'Marcar como resolvido' }}</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="muted">Nenhum pedido ainda. Eles chegam pela página <a class="link" href="{{ url_for('anuncie') }}" target="_blank">Anuncie seu rancho</a>.</p>
+{% endif %}
+{% endblock %}

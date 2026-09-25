@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% block title %}Relatório: {{ r.name }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>{{ r.name }}</h1>
+  <div class="actions"><a href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a></div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><strong>{{ months[0].views }}</strong><span>visitas em {{ months[0].label }}</span></div>
+  <div class="kpi"><strong>{{ months[0].whatsapp }}</strong><span>cliques no WhatsApp em {{ months[0].label }}</span></div>
+</div>
+
+<h2>Últimos 6 meses</h2>
+<div class="bars" role="img" aria-label="Visitas e cliques por mês">
+  {% for m in months|reverse %}
+  <div class="bar-col">
+    <div class="bar-stack">
+      <div class="bar views" style="height: {{ (m.views / peak * 100)|round(1) }}%"><span>{{ m.views }}</span></div>
+      <div class="bar zap" style="height: {{ (m.whatsapp / peak * 100)|round(1) }}%"><span>{{ m.whatsapp }}</span></div>
+    </div>
+    <p class="small">{{ m.short }}</p>
+  </div>
+  {% endfor %}
+</div>
+<p class="legend small"><i class="lg views"></i> visitas <i class="lg zap"></i> cliques no WhatsApp</p>
+
+<h2>Mensagem para o dono</h2>
+<textarea class="report-text" rows="7" readonly id="report-text">{{ text }}</textarea>
+<div class="row-btns">
+  <button class="btn btn-outline" data-copy="#report-text">Copiar</button>
+  {% if wa_link %}<a class="btn btn-zap" href="{{ wa_link }}" target="_blank" rel="noopener">Enviar no WhatsApp de {{ r.owner_name.split()[0] if r.owner_name else 'dono' }}</a>{% endif %}
+</div>
+{% endblock %}

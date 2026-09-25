@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Ranchos para alugar em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}Encontre ranchos para alugar em {{ CITY_NAME }}: beira-rio, piscina, pesca e churrasqueira. Ranchos verificados e contato direto com o dono pelo WhatsApp.{% endblock %}">
+  <meta name="theme-color" content="#0B4F4A">
+  {% block meta %}{% endblock %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="{{ url_for('index') }}">{{ SITE_NAME }}</a>
+      <nav class="topnav">
+        <a href="{{ url_for('index') }}#ranchos">Ranchos</a>
+        <a href="{{ url_for('index') }}#seguranca">Como alugar com segurança</a>
+        <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
+      </nav>
+    </div>
+  </header>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <div class="wrap flashes">
+        {% for cat, m in msgs %}<p class="flash flash-{{ cat }}">{{ m }}</p>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <div>
+        <p class="brand">{{ SITE_NAME }}</p>
+        <p class="muted">Ranchos para alugar em {{ CITY_NAME }}. A negociação e o pagamento são feitos direto com o dono do rancho.</p>
+      </div>
+      <div class="footer-links">
+        <a href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
+        <a href="{{ url_for('index') }}#seguranca">Dicas contra golpes</a>
+        {% if SITE_WHATSAPP %}<a href="https://wa.me/{{ SITE_WHATSAPP }}" rel="nofollow">Fale com a gente</a>{% endif %}
+      </div>
+    </div>
+    <div class="wrap"><p class="muted small">© {{ year }} {{ SITE_NAME }}</p></div>
+  </footer>
+  <script src="{{ url_for('static', filename='app.js') }}?v=1" defer></script>
+</body>
+</html>

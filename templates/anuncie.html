@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Anuncie seu rancho em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}Anuncie seu rancho para turistas que procuram onde ficar em {{ CITY_NAME }}. A gente tira as fotos e monta o anúncio.{% endblock %}
+{% block content %}
+<section class="wrap anuncie">
+  <div class="anuncie-pitch">
+    <h1>Anuncie seu rancho</h1>
+    <p class="intro">Turistas procuram rancho em {{ CITY_NAME }} no Google antes de todo feriado. Coloque o seu onde eles estão procurando.</p>
+    <ul class="tips">
+      <li><strong>A gente monta o anúncio.</strong> Visitamos o rancho, tiramos as fotos e escrevemos a descrição.</li>
+      <li><strong>O contato vem direto para o seu WhatsApp.</strong> Você negocia datas e valores do seu jeito, sem taxa por reserva.</li>
+      <li><strong>Selo de verificado.</strong> Turista confia mais em rancho visitado, e isso ajuda a fechar mais rápido.</li>
+      <li><strong>Relatório todo mês.</strong> Você recebe quantas pessoas viram seu anúncio e quantas chamaram no WhatsApp.</li>
+    </ul>
+  </div>
+
+  <div class="form-card">
+    {% if sent %}
+      <h2>Pedido recebido</h2>
+      <p>Obrigado! Vamos chamar você no WhatsApp para combinar a visita e as fotos.</p>
+      <a class="btn btn-dark" href="{{ url_for('index') }}">Ver ranchos</a>
+    {% else %}
+      <h2>Quero anunciar</h2>
+      <form method="post" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <label class="hp" aria-hidden="true">Site <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        <label>Seu nome <input type="text" name="name" required maxlength="120" value="{{ form.get('name', '') }}" autocomplete="name"></label>
+        <label>WhatsApp com DDD <input type="tel" name="phone" required maxlength="40" placeholder="(16) 99999-9999" value="{{ form.get('phone', '') }}" autocomplete="tel"></label>
+        <label>Nome do rancho <span class="muted">(opcional)</span> <input type="text" name="rancho_name" maxlength="160" value="{{ form.get('rancho_name', '') }}"></label>
+        <label>Onde fica <span class="muted">(bairro, estrada ou condomínio)</span> <input type="text" name="region" maxlength="160" value="{{ form.get('region', '') }}"></label>
+        <label>Quer contar algo? <span class="muted">(opcional)</span> <textarea name="message" rows="3" maxlength="2000">{{ form.get('message', '') }}</textarea></label>
+        <button class="btn btn-sun btn-block" type="submit">Enviar pedido</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

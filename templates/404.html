@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Página não encontrada | {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<section class="wrap empty" style="padding:80px 0">
+  <p><strong>Esta página não existe ou o rancho saiu do ar.</strong></p>
+  <a class="btn btn-dark" href="{{ url_for('index') }}">Ver ranchos disponíveis</a>
+</section>
+{% endblock %}

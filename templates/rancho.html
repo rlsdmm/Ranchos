@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ r.name }}{% if r.region %}, {{ r.region }}{% endif %} | Rancho para alugar em {{ CITY_NAME }}{% endblock %}
+{% block description %}{{ r.summary or r.name }}{% if r.capacity %} Até {{ r.capacity }} pessoas.{% endif %}{% if r.price_night %} Diária a partir de {{ brl(r.price_night) }}.{% endif %} Fale direto com o dono pelo WhatsApp.{% endblock %}
+{% block body_class %}has-bottombar{% endblock %}
+{% block meta %}
+  <meta property="og:title" content="{{ r.name }} | Rancho em {{ CITY_NAME }}">
+  <meta property="og:description" content="{{ r.summary or ('Rancho para até ' ~ r.capacity ~ ' pessoas') }}">
+  <meta property="og:type" content="website">
+  {% if r.cover %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('image', pid=r.cover.id) }}">{% endif %}
+  <link rel="canonical" href="{{ request.url_root.rstrip('/') }}{{ url_for('rancho', slug=r.slug) }}">
+  <script type="application/ld+json">
+  {{ ld | tojson }}
+  </script>
+{% endblock %}
+{% block content %}
+<article class="wrap rancho">
+  <nav class="crumbs"><a href="{{ url_for('index') }}#ranchos">← Todos os ranchos</a></nav>
+
+  <header class="rancho-head">
+    <div>
+      <h1>{{ r.name }}</h1>
+      <p class="muted">{% if r.region %}{{ r.region }}, {% endif %}{{ CITY_NAME }}</p>
+    </div>
+    {% if r.verified or not r.active %}
+    <div class="badges-inline">
+      {% if r.verified %}<span class="badge badge-ok">✓ Verificado</span>{% endif %}
+      {% if not r.active %}<span class="badge">Oculto no site</span>{% endif %}
+    </div>
+    {% endif %}
+  </header>
+
+  {% if r.photos %}
+  <div class="gallery g-n{{ [r.photos|length, 5]|min }}" data-gallery>
+    {% for p in r.photos %}
+      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ url_for('image', pid=p.id) }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
+        <img src="{{ url_for('image', pid=p.id, s=('f' if loop.first else 't')) }}" alt="{{ r.name }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
+      </button>
+    {% endfor %}
+    {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="rancho-grid">
+    <div class="rancho-main">
+      <ul class="facts">
+        {% if r.capacity %}<li><strong>{{ r.capacity }}</strong><span>pessoas</span></li>{% endif %}
+        {% if r.bedrooms %}<li><strong>{{ r.bedrooms }}</strong><span>{{ 'quarto' if r.bedrooms == 1 else 'quartos' }}</span></li>{% endif %}
+        {% if r.bathrooms %}<li><strong>{{ r.bathrooms }}</strong><span>{{ 'banheiro' if r.bathrooms == 1 else 'banheiros' }}</span></li>{% endif %}
+        {% if r.min_nights and r.min_nights > 1 %}<li><strong>{{ r.min_nights }}</strong><span>diárias mín.</span></li>{% endif %}
+      </ul>
+      {% if r.beds %}<p class="muted">Camas: {{ r.beds }}</p>{% endif %}
+
+      {% if r.description %}
+      <section class="block">
+        <h2>Sobre o rancho</h2>
+        {% for para in r.description.split('\n\n') %}<p>{{ para|replace('\n', ' ') }}</p>{% endfor %}
+      </section>
+      {% endif %}
+
+      {% if r.amenity_list %}
+      <section class="block">
+        <h2>O que tem</h2>
+        <ul class="amenities">
+          {% for a in r.amenity_list %}<li><span aria-hidden="true">{{ AMENITIES[a][1] }}</span>{{ AMENITIES[a][0] }}</li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if r.checkin or r.checkout or r.rules %}
+      <section class="block">
+        <h2>Regras da casa</h2>
+        {% if r.checkin or r.checkout %}
+        <p>{% if r.checkin %}Entrada a partir das <strong>{{ r.checkin }}</strong>{% endif %}{% if r.checkin and r.checkout %}. {% endif %}{% if r.checkout %}Saída até as <strong>{{ r.checkout }}</strong>{% endif %}.</p>
+        {% endif %}
+        {% if r.rules %}<ul class="rules">{% for line in r.rules.split('\n') if line.strip() %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+      </section>
+      {% endif %}
+
+      {% if r.maps_url %}
+      <section class="block">
+        <h2>Localização</h2>
+        <p><a class="link" href="{{ r.maps_url }}" target="_blank" rel="noopener nofollow">Ver no mapa ↗</a></p>
+      </section>
+      {% endif %}
+
+      {% if SITE_WHATSAPP %}
+      <section class="block services">
+        <h2>Cozinheira ou faxina para sua estadia</h2>
+        <p class="muted">Quer só aproveitar? A gente indica cozinheira para o fim de semana e faxina na saída.</p>
+        <a class="btn btn-outline" href="{{ url_for('servicos_whatsapp', rancho=r.slug) }}" rel="nofollow">Pedir orçamento</a>
+      </section>
+      {% endif %}
+    </div>
+
+    <aside class="book" id="reservar">
+      <div class="book-card">
+        {% if r.price_night %}
+          <p class="book-price"><strong>{{ brl(r.price_night) }}</strong> <span class="muted">/ diária</span></p>
+        {% else %}
+          <p class="book-price"><strong>Consulte o valor</strong></p>
+        {% endif %}
+        <dl class="book-list">
+          {% if r.price_weekend %}<div><dt>Fim de semana</dt><dd>{{ brl(r.price_weekend) }}</dd></div>{% endif %}
+          {% if r.price_holiday %}<div><dt>Feriados</dt><dd>{{ r.price_holiday }}</dd></div>{% endif %}
+          {% if r.min_nights and r.min_nights > 1 %}<div><dt>Mínimo</dt><dd>{{ r.min_nights }} diárias</dd></div>{% endif %}
+        </dl>
+        {% if r.whatsapp_digits %}
+          <a class="btn btn-zap btn-block" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>
+            Consultar datas no WhatsApp
+          </a>
+          <p class="small muted">Você fala direto com {{ r.owner_name.split()[0] if r.owner_name else 'o dono' }}. Combine datas, valor e sinal com ele.</p>
+        {% endif %}
+      </div>
+      {% if r.verified %}
+      <div class="verified-note">
+        <p><strong>✓ Rancho verificado</strong></p>
+        <p class="small">Nossa equipe visitou o rancho e confirmou o contato do dono. Mesmo assim, só pague o sinal com contrato e confira o nome no Pix.</p>
+      </div>
+      {% else %}
+      <div class="verified-note warn">
+        <p class="small">Este rancho ainda não foi visitado pela nossa equipe. Antes de pagar qualquer sinal, peça contrato e confira o nome no Pix. <a class="link" href="{{ url_for('index') }}#seguranca">Veja as dicas</a>.</p>
+      </div>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% if others %}
+  <section class="block others">
+    <h2>Outros ranchos</h2>
+    <ul class="grid grid-3">
+      {% for o in others %}
+      <li class="card">
+        <a href="{{ url_for('rancho', slug=o.slug) }}" class="card-link">
+          <div class="card-img">
+            {% if o.cover %}<img src="{{ url_for('image', pid=o.cover.id, s='t') }}" alt="{{ o.name }}" loading="lazy" width="720" height="480">{% else %}<div class="noimg">🏡</div>{% endif %}
+          </div>
+          <div class="card-body">
+            <h3>{{ o.name }}</h3>
+            <p class="specs">{% if o.capacity %}<span>👥 até {{ o.capacity }}</span>{% endif %}</p>
+            {% if o.price_night %}<p class="price"><strong>{{ brl(o.price_night) }}</strong> <span class="muted">/ diária</span></p>{% endif %}
+          </div>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</article>
+
+{% if r.whatsapp_digits %}
+<div class="bottombar">
+  <div>
+    {% if r.price_night %}<strong>{{ brl(r.price_night) }}</strong> <span class="muted small">/ diária</span>{% else %}<strong>Consulte</strong>{% endif %}
+  </div>
+  <a class="btn btn-zap" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">Falar com o dono</a>
+</div>
+{% endif %}
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" aria-label="Fechar">×</button>
+  <button class="lb-prev" aria-label="Foto anterior">‹</button>
+  <img alt="">
+  <button class="lb-next" aria-label="Próxima foto">›</button>
+  <p class="lb-count"></p>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% block title %}Painel{% endblock %} | {{ SITE_NAME }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1">
+</head>
+<body class="admin">
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="{{ url_for('admin_home') }}">Painel</a>
+      {% if is_admin() %}
+      <nav class="topnav">
+        <a href="{{ url_for('index') }}" target="_blank">Ver site ↗</a>
+        <a class="topnav-cta" href="{{ url_for('admin_edit') }}">+ Novo rancho</a>
+        <form method="post" action="{{ url_for('admin_logout') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="linkbtn">Sair</button></form>
+      </nav>
+      {% endif %}
+    </div>
+  </header>
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}<div class="wrap flashes">{% for cat, m in msgs %}<p class="flash flash-{{ cat }}">{{ m }}</p>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  <main class="wrap admin-main">{% block content %}{% endblock %}</main>
+  <script src="{{ url_for('static', filename='app.js') }}?v=1" defer></script>
+</body>
+</html>
