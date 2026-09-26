@@ -205,16 +205,23 @@ def process_image(file_storage):
     """Returns (full_webp, thumb_webp, w, h) or None if not an image."""
     try:
         img = Image.open(file_storage.stream)
+        # JPEG: decodifica já reduzido (1/2, 1/4...) em vez dos 12 MP inteiros. Bem mais rápido
+        # e leve, o que importa no plano grátis do Render (0,1 CPU e 512 MB).
+        w, h = img.size
+        scale = 1800 / max(w, h)
+        if scale < 1:
+            img.draft("RGB", (int(w * scale), int(h * scale)))
         img = ImageOps.exif_transpose(img).convert("RGB")
     except Exception:
         return None
-    full = img.copy()
-    full.thumbnail((1800, 1800), Image.LANCZOS)
-    thumb = img.copy()
-    thumb.thumbnail((720, 720), Image.LANCZOS)
+    full = img
+    full.thumbnail((1800, 1800), Image.LANCZOS, reducing_gap=3.0)
+    thumb = full.copy()
+    thumb.thumbnail((720, 720), Image.LANCZOS, reducing_gap=3.0)
     b1, b2 = io.BytesIO(), io.BytesIO()
-    full.save(b1, "WEBP", quality=80, method=4)
-    thumb.save(b2, "WEBP", quality=76, method=4)
+    # method=2: ~3x mais rápido que o 4 e só ~4% maior
+    full.save(b1, "WEBP", quality=80, method=2)
+    thumb.save(b2, "WEBP", quality=76, method=2)
     return b1.getvalue(), b2.getvalue(), full.width, full.height
 
 
