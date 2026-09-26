@@ -74,4 +74,45 @@
         n ? `${n} foto(s) selecionada(s). Clique em Salvar rancho para enviar.` : 'Nenhuma foto selecionada.';
     });
   }
+
+  // Reduz as fotos no navegador antes de enviar: o servidor guarda no máximo 1800 px mesmo,
+  // o envio fica bem mais rápido e cabe no limite de ~32 MB por envio do Firebase/Cloud Run.
+  const editForm = document.getElementById('edit-form');
+  const MAX_PX = 2000;
+  async function shrink(file) {
+    if (!file.type.startsWith('image/') || file.size < 400 * 1024) return file;
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const scale = Math.min(1, MAX_PX / Math.max(bmp.width, bmp.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      bmp.close();
+      const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.88));
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+    } catch {
+      return file; // formato que o navegador não abre (ex.: HEIC no Chrome): o servidor decide
+    }
+  }
+  if (editForm && input && window.DataTransfer && window.createImageBitmap) {
+    editForm.addEventListener('submit', async (e) => {
+      if (!input.files.length || editForm.dataset.ready) return;
+      e.preventDefault();
+      const btn = editForm.querySelector('.sticky-save button');
+      const status = document.getElementById('photo-count');
+      btn.disabled = true;
+      const dt = new DataTransfer();
+      const files = [...input.files];
+      for (let n = 0; n < files.length; n++) {
+        status.textContent = `Preparando foto ${n + 1} de ${files.length}…`;
+        dt.items.add(await shrink(files[n]));
+      }
+      input.files = dt.files;
+      status.textContent = `Enviando ${files.length} foto(s)…`;
+      editForm.dataset.ready = '1';
+      editForm.submit();
+    });
+  }
 })();

@@ -5,3 +5,5 @@ instance/
 *.db
 .venv/
 venv/
+firebase-debug.log
+.firebase/
