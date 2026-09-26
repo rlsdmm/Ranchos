@@ -596,6 +596,35 @@ def admin_photo(rid, pid, action):
     return redirect(url_for("admin_edit", rid=rid) + "#fotos")
 
 
+@app.route("/admin/rancho/<int:rid>/fotos/ordem", methods=["POST"])
+@admin_required
+def admin_photo_order(rid):
+    """Recebe a ordem nova do arrastar-e-soltar: ids separados por vírgula."""
+    r = db.session.get(Rancho, rid) or abort(404)
+    by_id = {p.id: p for p in r.photos}
+    try:
+        ids = [int(x) for x in request.form.get("ordem", "").split(",") if x]
+    except ValueError:
+        abort(400)
+    if sorted(ids) != sorted(by_id):  # a página estava desatualizada (foto nova ou excluída em outra aba)
+        return {"ok": False, "erro": "As fotos mudaram em outra aba."}, 409
+    for i, pid in enumerate(ids):
+        by_id[pid].position = i
+    db.session.commit()
+    return {"ok": True}
+
+
+@app.route("/admin/rancho/<int:rid>/fotos/excluir-todas", methods=["POST"])
+@admin_required
+def admin_photos_delete_all(rid):
+    r = db.session.get(Rancho, rid) or abort(404)
+    n = len(r.photos)
+    r.photos.clear()
+    db.session.commit()
+    flash(f"{n} foto(s) excluída(s).", "ok")
+    return redirect(url_for("admin_edit", rid=rid) + "#fotos")
+
+
 @app.route("/admin/rancho/<int:rid>/excluir", methods=["POST"])
 @admin_required
 def admin_delete(rid):

@@ -80,19 +80,25 @@
 </form>
 
 {% if r and r.photos %}
-<ul class="photo-grid">
+<div class="photo-toolbar">
+  <p class="muted" id="order-status">Arraste as fotos (pelo <b>⠿</b>) para mudar a ordem. A primeira é a capa.</p>
+  <form method="post" action="{{ url_for('admin_photos_delete_all', rid=r.id) }}" data-confirm="Excluir TODAS as {{ r.photos|length }} fotos de {{ r.name }}? Não dá para desfazer.">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn btn-outline danger">Excluir todas as fotos ({{ r.photos|length }})</button>
+  </form>
+</div>
+<ul class="photo-grid" id="photo-grid" data-order-url="{{ url_for('admin_photo_order', rid=r.id) }}" data-csrf="{{ csrf_token() }}">
   {% for p in r.photos %}
-  <li>
-    <img src="{{ url_for('image', pid=p.id, s='t') }}" alt="" loading="lazy">
-    {% if loop.first %}<span class="badge badge-sun">Capa</span>{% endif %}
+  <li data-id="{{ p.id }}">
+    <img src="{{ url_for('image', pid=p.id, s='t') }}" alt="" loading="lazy" draggable="false">
+    <span class="badge badge-sun badge-capa">Capa</span>
+    <button type="button" class="drag-handle" aria-label="Arrastar para reordenar" title="Arrastar para reordenar">⠿</button>
     <div class="photo-actions">
       {% for action, label in [('esquerda', '←'), ('direita', '→'), ('capa', 'Capa'), ('excluir', 'Excluir')] %}
-        {% if not (action == 'capa' and loop.first) %}
-        <form method="post" action="{{ url_for('admin_photo', rid=r.id, pid=p.id, action=action) }}" {% if action == 'excluir' %}data-confirm="Excluir esta foto?"{% endif %}>
+        <form method="post" action="{{ url_for('admin_photo', rid=r.id, pid=p.id, action=action) }}" class="act-{{ action }}" {% if action == 'excluir' %}data-confirm="Excluir esta foto?"{% endif %}>
           <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
           <button class="{% if action == 'excluir' %}danger{% endif %}">{{ label }}</button>
         </form>
-        {% endif %}
       {% endfor %}
     </div>
   </li>
