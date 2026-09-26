@@ -27,7 +27,7 @@ from flask import (Flask, Response, abort, flash, g, redirect, render_template,
                    request, session, url_for)
 from flask_sqlalchemy import SQLAlchemy
 from PIL import Image, ImageOps
-from sqlalchemy import func
+from sqlalchemy import exc, func
 from sqlalchemy.orm import deferred
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -54,12 +54,14 @@ app.config.update(
     SQLALCHEMY_DATABASE_URI=db_url,
     SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
     MAX_CONTENT_LENGTH=60 * 1024 * 1024,  # uploads de até 60 MB por envio
+    # O Firebase Hosting (na frente do Cloud Run) descarta todo cookie que não se chame __session.
+    SESSION_COOKIE_NAME="__session",
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("FLASK_ENV") != "development" and bool(BASE_URL.startswith("https")),
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
 )
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # Render fica atrás de proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # o servidor fica atrás de proxy
 db = SQLAlchemy(app)
 
 # Comodidades: chave -> (rótulo, ícone)
@@ -165,7 +167,13 @@ class Lead(db.Model):
 
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except exc.DatabaseError:
+        # Os workers do gunicorn sobem juntos; se outro criou as tabelas no mesmo instante, tenta de novo.
+        db.session.rollback()
+        time.sleep(1)
+        db.create_all()
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +313,8 @@ def security_headers(resp):
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    # Só as fotos podem ficar no cache da CDN; páginas têm contagem de visitas e token de formulário.
+    resp.headers.setdefault("Cache-Control", "private, no-cache")
     return resp
 
 

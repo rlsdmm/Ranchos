@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "public": "firebase-public",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": { "serviceId": "ranchos", "region": "southamerica-east1" }
+      }
+    ]
+  }
+}

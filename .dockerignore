@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+instance
+*.db
+.env
+.claude
+Ranchos
+.firebase
