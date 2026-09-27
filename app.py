@@ -20,7 +20,7 @@ import time
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from zoneinfo import ZoneInfo
 
 from flask import (Flask, Response, abort, flash, g, redirect, render_template,
@@ -296,7 +296,19 @@ def counts_since(since, rancho_id=None):
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
                 AMENITIES=AMENITIES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
-                year=datetime.now().year)
+                site_url=site_url, year=datetime.now().year)
+
+
+CANONICAL_HOST = urlparse(BASE_URL).netloc
+
+
+@app.before_request
+def canonical_host():
+    """O site também responde em *.web.app e *.run.app; manda tudo pro domínio oficial
+    para o Google não indexar cópias."""
+    if CANONICAL_HOST and request.host != CANONICAL_HOST:
+        code = 301 if request.method in ("GET", "HEAD") else 308
+        return redirect(BASE_URL + request.full_path.rstrip("?"), code=code)
 
 
 BR_TZ = ZoneInfo("America/Sao_Paulo")

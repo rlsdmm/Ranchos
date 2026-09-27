@@ -7,7 +7,7 @@
   <meta property="og:description" content="{{ r.summary or ('Rancho para até ' ~ r.capacity ~ ' pessoas') }}">
   <meta property="og:type" content="website">
   {% if r.cover %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('image', pid=r.cover.id) }}">{% endif %}
-  <link rel="canonical" href="{{ request.url_root.rstrip('/') }}{{ url_for('rancho', slug=r.slug) }}">
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('rancho', slug=r.slug) }}">
   <script type="application/ld+json">
   {{ ld | tojson }}
   </script>

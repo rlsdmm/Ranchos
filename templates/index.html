@@ -3,6 +3,8 @@
   <meta property="og:title" content="Ranchos para alugar em {{ CITY_NAME }}">
   <meta property="og:description" content="Ranchos verificados, beira-rio, com piscina e rampa para barco. Fale direto com o dono.">
   <meta property="og:type" content="website">
+  {# filtros mudam o endereço (?c=pesca...), mas para o Google é tudo a mesma página #}
+  <link rel="canonical" href="{{ site_url() }}/">
   {% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('image', pid=ranchos[0].cover.id) }}">{% endif %}
 {% endblock %}
 {% block content %}
