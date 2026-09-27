@@ -5,7 +5,7 @@
   <meta property="og:type" content="website">
   {# filtros mudam o endereço (?c=pesca...), mas para o Google é tudo a mesma página #}
   <link rel="canonical" href="{{ site_url() }}/">
-  {% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('image', pid=ranchos[0].cover.id) }}">{% endif %}
+  {% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
 {% endblock %}
 {% block content %}
 <section class="hero">
@@ -66,7 +66,7 @@
       <a href="{{ url_for('rancho', slug=r.slug) }}" class="card-link">
         <div class="card-img">
           {% if r.cover %}
-            <img src="{{ url_for('image', pid=r.cover.id, s='t') }}" alt="{{ r.name }}" loading="{{ 'eager' if loop.index <= 3 else 'lazy' }}" width="720" height="480">
+            <img src="{{ r.cover.url('t') }}" alt="{{ r.name }}" loading="{{ 'eager' if loop.index <= 3 else 'lazy' }}" width="720" height="480">
           {% else %}
             <div class="noimg">🏡</div>
           {% endif %}

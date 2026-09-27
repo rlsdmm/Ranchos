@@ -91,7 +91,7 @@
 <ul class="photo-grid" id="photo-grid" data-order-url="{{ url_for('admin_photo_order', rid=r.id) }}" data-csrf="{{ csrf_token() }}">
   {% for p in r.photos %}
   <li data-id="{{ p.id }}">
-    <img src="{{ url_for('image', pid=p.id, s='t') }}" alt="" loading="lazy" draggable="false">
+    <img src="{{ p.url('t') }}" alt="" loading="lazy" draggable="false">
     <span class="badge badge-sun badge-capa">Capa</span>
     <button type="button" class="drag-handle" aria-label="Arrastar para reordenar" title="Arrastar para reordenar">⠿</button>
     <div class="photo-actions">

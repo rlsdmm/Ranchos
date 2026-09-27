@@ -6,7 +6,7 @@
   <meta property="og:title" content="{{ r.name }} | Rancho em {{ CITY_NAME }}">
   <meta property="og:description" content="{{ r.summary or ('Rancho para até ' ~ r.capacity ~ ' pessoas') }}">
   <meta property="og:type" content="website">
-  {% if r.cover %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('image', pid=r.cover.id) }}">{% endif %}
+  {% if r.cover %}<meta property="og:image" content="{{ r.cover.url(absolute=True) }}">{% endif %}
   <link rel="canonical" href="{{ site_url() }}{{ url_for('rancho', slug=r.slug) }}">
   <script type="application/ld+json">
   {{ ld | tojson }}
@@ -32,8 +32,8 @@
   {% if r.photos %}
   <div class="gallery g-n{{ [r.photos|length, 5]|min }}" data-gallery>
     {% for p in r.photos %}
-      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ url_for('image', pid=p.id) }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
-        <img src="{{ url_for('image', pid=p.id, s=('f' if loop.first else 't')) }}" alt="{{ r.name }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
+      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
+        <img src="{{ p.url(('f' if loop.first else 't')) }}" alt="{{ r.name }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
       </button>
     {% endfor %}
     {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
@@ -133,7 +133,7 @@
       <li class="card">
         <a href="{{ url_for('rancho', slug=o.slug) }}" class="card-link">
           <div class="card-img">
-            {% if o.cover %}<img src="{{ url_for('image', pid=o.cover.id, s='t') }}" alt="{{ o.name }}" loading="lazy" width="720" height="480">{% else %}<div class="noimg">🏡</div>{% endif %}
+            {% if o.cover %}<img src="{{ o.cover.url('t') }}" alt="{{ o.name }}" loading="lazy" width="720" height="480">{% else %}<div class="noimg">🏡</div>{% endif %}
           </div>
           <div class="card-body">
             <h3>{{ o.name }}</h3>

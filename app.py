@@ -7,8 +7,8 @@ Admin:    /admin — cadastro de ranchos, fotos, destaque/verificado, pedidos de
           anúncio e relatório mensal por rancho (pronto para mandar ao dono).
 
 Banco:    DATABASE_URL (Postgres em produção). Sem ela, usa SQLite local.
-          As fotos ficam no próprio banco, então nada se perde quando o
-          Render reinicia o servidor.
+Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunny
+          Storage e são servidas pela CDN do Bunny. Sem elas, ficam no próprio banco.
 """
 import hashlib
 import hmac
@@ -18,6 +18,8 @@ import re
 import secrets
 import time
 import unicodedata
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import quote, urlparse
@@ -39,6 +41,12 @@ CITY_NAME = os.environ.get("CITY_NAME", "Sua Cidade")
 SITE_WHATSAPP = re.sub(r"\D", "", os.environ.get("SITE_WHATSAPP", ""))
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 BASE_URL = os.environ.get("BASE_URL", "").rstrip("/")
+# Bunny Storage: ex. https://br.storage.bunnycdn.com/zona  +  https://zona.b-cdn.net
+BUNNY_STORAGE_URL = os.environ.get("BUNNY_STORAGE_URL", "").rstrip("/")
+BUNNY_STORAGE_KEY = os.environ.get("BUNNY_STORAGE_KEY", "")
+BUNNY_CDN_URL = os.environ.get("BUNNY_CDN_URL", "").rstrip("/")
+BUNNY_ON = bool(BUNNY_STORAGE_URL and BUNNY_STORAGE_KEY and BUNNY_CDN_URL)
+BUNNY_PREFIX = "ranchos"  # pasta dentro da zona, que é compartilhada com outros arquivos
 
 db_url = os.environ.get("DATABASE_URL", "sqlite:///ranchos.db")
 if db_url.startswith("postgres://"):
@@ -144,8 +152,17 @@ class Photo(db.Model):
     width = db.Column(db.Integer, default=0)
     height = db.Column(db.Integer, default=0)
     etag = db.Column(db.String(40), default="")
+    # Caminho no Bunny sem o sufixo (-f.webp / -t.webp). Vazio = a foto está nas colunas abaixo,
+    # que então ficam com b"" (não dá para tirar o NOT NULL no SQLite sem recriar a tabela).
+    cdn_key = db.Column(db.String(120), default="")
     full = deferred(db.Column(db.LargeBinary, nullable=False))
     thumb = deferred(db.Column(db.LargeBinary, nullable=False))
+
+    def url(self, s="f", absolute=False):
+        if self.cdn_key:
+            return f"{BUNNY_CDN_URL}/{self.cdn_key}-{s}.webp"
+        path = url_for("image", pid=self.id, s="t" if s == "t" else None)
+        return site_url() + path if absolute else path
 
 
 class Event(db.Model):
@@ -174,6 +191,13 @@ with app.app_context():
         db.session.rollback()
         time.sleep(1)
         db.create_all()
+    # create_all não acrescenta coluna em tabela que já existe.
+    if "cdn_key" not in {c["name"] for c in db.inspect(db.engine).get_columns("photo")}:
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(db.text("ALTER TABLE photo ADD COLUMN cdn_key VARCHAR(120) DEFAULT ''"))
+        except exc.DatabaseError:  # outro worker acrescentou ao mesmo tempo
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +255,36 @@ def process_image(file_storage):
     full.save(b1, "WEBP", quality=80, method=2)
     thumb.save(b2, "WEBP", quality=76, method=2)
     return b1.getvalue(), b2.getvalue(), full.width, full.height
+
+
+def bunny_request(method, path, data=None):
+    req = urllib.request.Request(f"{BUNNY_STORAGE_URL}/{path}", data=data, method=method,
+                                 headers={"AccessKey": BUNNY_STORAGE_KEY,
+                                          "Content-Type": "application/octet-stream"})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.status
+
+
+def bunny_upload(key, full, thumb):
+    """Envia as duas versões juntas (metade do tempo de espera)."""
+    with ThreadPoolExecutor(2) as ex:
+        for f in [ex.submit(bunny_request, "PUT", f"{key}-f.webp", full),
+                  ex.submit(bunny_request, "PUT", f"{key}-t.webp", thumb)]:
+            f.result()
+
+
+def bunny_delete(keys):
+    """Apaga do Bunny depois do commit. Se falhar, sobra só um arquivo órfão; não trava o painel."""
+    paths = [f"{k}-{s}.webp" for k in keys if k for s in "ft"]
+    if not paths:
+        return
+    def rm(p):
+        try:
+            bunny_request("DELETE", p)
+        except Exception as e:
+            app.logger.warning("Bunny: não apagou %s (%s)", p, e)
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(rm, paths))
 
 
 def site_url():
@@ -384,7 +438,7 @@ def rancho(slug):
         "description": r.summary or (r.description or "")[:200],
         "url": f"{base}/rancho/{r.slug}",
         "address": {"@type": "PostalAddress", "addressLocality": CITY_NAME, "streetAddress": r.region or ""},
-        "image": [f"{base}/img/{p.id}" for p in r.photos[:5]],
+        "image": [p.url(absolute=True) for p in r.photos[:5]],
         "priceRange": f"{brl(r.price_weekend)} o fim de semana" if r.price_weekend else "Consulte",
         "amenityFeature": [{"@type": "LocationFeatureSpecification", "name": AMENITIES[a][0], "value": True}
                            for a in r.amenity_list],
@@ -441,6 +495,8 @@ def image(pid):
     p = db.session.get(Photo, pid)
     if not p:
         abort(404)
+    if p.cdn_key:  # links antigos (Google Imagens, WhatsApp) continuam funcionando
+        return redirect(p.url(request.args.get("s", "f")), 301)
     etag = f'"{p.etag}-{request.args.get("s", "f")}"'
     if request.headers.get("If-None-Match") == etag:
         return Response(status=304)
@@ -553,8 +609,15 @@ def save_uploads(r, files):
             skipped += 1
             continue
         full, thumb, w, h = res
+        etag = hashlib.sha1(full).hexdigest()[:16]
+        key = ""
+        if BUNNY_ON:
+            db.session.flush()  # rancho novo ainda não tem id
+            key = f"{BUNNY_PREFIX}/{r.id}/{etag}-{secrets.token_hex(3)}"
+            bunny_upload(key, full, thumb)
+            full = thumb = b""
         r.photos.append(Photo(position=pos, width=w, height=h, full=full, thumb=thumb,
-                              etag=hashlib.sha1(full).hexdigest()[:16]))
+                              etag=etag, cdn_key=key))
         pos += 1
         added += 1
     return added, skipped
@@ -594,8 +657,10 @@ def admin_photo(rid, pid, action):
     r = db.session.get(Rancho, rid) or abort(404)
     photos = list(r.photos)
     p = next((x for x in photos if x.id == pid), None) or abort(404)
+    gone = []
     if action == "excluir":
         r.photos.remove(p)
+        gone.append(p.cdn_key)
     elif action == "capa":
         photos.remove(p)
         photos.insert(0, p)
@@ -607,6 +672,7 @@ def admin_photo(rid, pid, action):
     for i, x in enumerate(photos):
         x.position = i
     db.session.commit()
+    bunny_delete(gone)
     return redirect(url_for("admin_edit", rid=rid) + "#fotos")
 
 
@@ -650,8 +716,10 @@ def admin_photo_order(rid):
 def admin_photos_delete_all(rid):
     r = db.session.get(Rancho, rid) or abort(404)
     n = len(r.photos)
+    gone = [p.cdn_key for p in r.photos]
     r.photos.clear()
     db.session.commit()
+    bunny_delete(gone)
     flash(f"{n} foto(s) excluída(s).", "ok")
     return redirect(url_for("admin_edit", rid=rid) + "#fotos")
 
@@ -660,9 +728,11 @@ def admin_photos_delete_all(rid):
 @admin_required
 def admin_delete(rid):
     r = db.session.get(Rancho, rid) or abort(404)
+    gone = [p.cdn_key for p in r.photos]
     Event.query.filter_by(rancho_id=r.id).delete()
     db.session.delete(r)
     db.session.commit()
+    bunny_delete(gone)
     flash(f"{r.name} excluído.", "ok")
     return redirect(url_for("admin_home"))
 
@@ -794,6 +864,24 @@ def seed_demo():
                 db.session.add(Event(rancho_id=r.id, kind="whatsapp", created_at=now_utc() - timedelta(days=d_ago)))
     db.session.commit()
     print("Ranchos de exemplo criados.")
+
+
+
+@app.cli.command("fotos-para-bunny")
+def photos_to_bunny():
+    """Move para o Bunny as fotos que ainda estão no banco (pode rodar de novo se parar no meio)."""
+    if not BUNNY_ON:
+        raise SystemExit("Defina BUNNY_STORAGE_URL, BUNNY_STORAGE_KEY e BUNNY_CDN_URL.")
+    ids = [pid for (pid,) in db.session.query(Photo.id).filter(Photo.cdn_key == "").order_by(Photo.id)]
+    print(f"{len(ids)} foto(s) no banco.")
+    for n, pid in enumerate(ids, 1):
+        p = db.session.get(Photo, pid)
+        key = f"{BUNNY_PREFIX}/{p.rancho_id}/{p.etag or pid}-{secrets.token_hex(3)}"
+        bunny_upload(key, p.full, p.thumb)
+        p.cdn_key, p.full, p.thumb = key, b"", b""
+        db.session.commit()  # uma por vez: se cair no meio, o que já foi fica salvo
+        db.session.expunge_all()
+        print(f"{n}/{len(ids)} foto {pid} -> {key}")
 
 
 if __name__ == "__main__":
