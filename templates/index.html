@@ -51,6 +51,7 @@
     <noscript><button class="btn btn-dark" type="submit">Filtrar</button></noscript>
   </form>
 
+  <div id="results" aria-live="polite">
   <div class="results-head">
     <h2>{% if filtering %}{{ ranchos|length }} de {{ total }} ranchos{% else %}{{ total }} {{ 'rancho' if total == 1 else 'ranchos' }} para alugar{% endif %}</h2>
     {% if filtering %}<a class="link" href="{{ url_for('index') }}#ranchos">Limpar filtros</a>{% endif %}
@@ -101,6 +102,7 @@
       {% endif %}
     </div>
   {% endif %}
+  </div>
 </section>
 
 <section class="safety" id="seguranca">

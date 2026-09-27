@@ -115,6 +115,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* ---------- Results ---------- */
+#results { transition: opacity .2s; }
+#results.loading { opacity: .45; pointer-events: none; }
 .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 36px 0 16px; }
 .results-head h2 { font-size: 26px; font-weight: 800; font-stretch: 105%; }
 .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 26px 22px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }

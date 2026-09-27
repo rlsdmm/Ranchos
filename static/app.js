@@ -1,13 +1,51 @@
 (() => {
   'use strict';
 
-  // Filters submit as soon as something changes
+  // Filtros: busca só a lista de resultados em segundo plano, sem recarregar a página
   const filters = document.getElementById('filters');
+  const results = document.getElementById('results');
   if (filters) {
-    filters.addEventListener('change', () => {
-      // drop empty params so URLs stay clean
-      [...filters.elements].forEach((el) => { if (el.tagName === 'SELECT' && !el.value) el.disabled = true; });
-      filters.submit();
+    const urlFor = () => {
+      const params = new URLSearchParams();
+      new FormData(filters).forEach((v, k) => {
+        if (v && !(k === 'ordem' && v === 'destaque')) params.append(k, v); // sem vazios nem o padrão
+      });
+      const qs = params.toString();
+      return filters.action.split('#')[0].split('?')[0] + (qs ? `?${qs}` : '');
+    };
+    let pending = null;
+    const refresh = async (url) => {
+      if (!results || !window.fetch) { location.href = `${url}#ranchos`; return; }
+      if (pending) pending.abort();
+      pending = new AbortController();
+      results.classList.add('loading');
+      try {
+        const resp = await fetch(url, { signal: pending.signal });
+        if (!resp.ok) throw new Error(resp.status);
+        const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+        const fresh = doc.getElementById('results');
+        if (!fresh) throw new Error('sem resultados');
+        results.innerHTML = fresh.innerHTML;
+        history.replaceState(null, '', `${url}#ranchos`);
+      } catch (err) {
+        if (err.name !== 'AbortError') location.href = `${url}#ranchos`; // se falhar, faz do jeito antigo
+      } finally {
+        results.classList.remove('loading');
+      }
+    };
+    filters.addEventListener('change', () => refresh(urlFor()));
+    filters.addEventListener('submit', (e) => { e.preventDefault(); refresh(urlFor()); });
+    // "Limpar filtros" e "Ver todos os ranchos" também sem recarregar
+    results?.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href]');
+      if (!a || new URL(a.href).pathname !== new URL(filters.action).pathname) return;
+      e.preventDefault();
+      filters.reset();
+      [...filters.elements].forEach((el) => {
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        if (el.type === 'checkbox') el.checked = false;
+      });
+      refresh(urlFor());
     });
   }
 
