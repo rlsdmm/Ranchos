@@ -39,10 +39,11 @@
   <fieldset>
     <legend>Preços e regras</legend>
     <div class="cols-3">
-      <label>Diária (R$) <input name="price_night" inputmode="numeric" value="{{ r.price_night if r and r.price_night else '' }}" placeholder="900"></label>
-      <label>Fim de semana (R$) <input name="price_weekend" inputmode="numeric" value="{{ r.price_weekend if r and r.price_weekend else '' }}" placeholder="1700"></label>
-      <label>Feriados <input name="price_holiday" maxlength="160" value="{{ r.price_holiday if r else '' }}" placeholder="Pacote 3 diárias R$ 2.800"></label>
+      <label>Fim de semana (R$) <input name="price_weekend" inputmode="numeric" value="{{ r.price_weekend if r and r.price_weekend else '' }}" placeholder="3500"></label>
+      <label>Diária avulsa (R$) <span class="muted">opcional</span> <input name="price_night" inputmode="numeric" value="{{ r.price_night if r and r.price_night else '' }}" placeholder="vazio = a combinar"></label>
+      <label>Feriados <span class="muted">opcional</span> <input name="price_holiday" maxlength="160" value="{{ r.price_holiday if r else '' }}" placeholder="vazio = a combinar"></label>
     </div>
+    <p class="muted small">O valor do fim de semana é o que aparece nos anúncios e no filtro. Diária e feriados vazios aparecem como "A combinar".</p>
     <div class="cols-2">
       <label>Entrada <input name="checkin" maxlength="20" value="{{ r.checkin if r else '' }}" placeholder="14h"></label>
       <label>Saída <input name="checkout" maxlength="20" value="{{ r.checkout if r else '' }}" placeholder="12h"></label>

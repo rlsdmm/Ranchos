@@ -345,12 +345,14 @@ def index():
     if cap:
         ranchos = [r for r in ranchos if (r.capacity or 0) >= cap]
     if max_price:
-        ranchos = [r for r in ranchos if r.price_night and r.price_night <= max_price]
+        # A cidade trabalha com valor de fim de semana. Rancho sem valor cadastrado ("consulte")
+        # continua aparecendo, para não sumir da busca só por não ter preço.
+        ranchos = [r for r in ranchos if not r.price_weekend or r.price_weekend <= max_price]
     if wanted:
         ranchos = [r for r in ranchos if set(wanted) <= set(r.amenity_list)]
 
     if order == "preco":
-        ranchos.sort(key=lambda r: (r.price_night or 10**9))
+        ranchos.sort(key=lambda r: (r.price_weekend or 10**9))
     elif order == "capacidade":
         ranchos.sort(key=lambda r: -(r.capacity or 0))
     else:
@@ -383,7 +385,7 @@ def rancho(slug):
         "url": f"{base}/rancho/{r.slug}",
         "address": {"@type": "PostalAddress", "addressLocality": CITY_NAME, "streetAddress": r.region or ""},
         "image": [f"{base}/img/{p.id}" for p in r.photos[:5]],
-        "priceRange": f"{brl(r.price_night)} por diária" if r.price_night else "Consulte",
+        "priceRange": f"{brl(r.price_weekend)} o fim de semana" if r.price_weekend else "Consulte",
         "amenityFeature": [{"@type": "LocationFeatureSpecification", "name": AMENITIES[a][0], "value": True}
                            for a in r.amenity_list],
     }

@@ -29,10 +29,10 @@
         </select>
       </label>
       <label class="fsel">
-        <span>Diária até</span>
+        <span>Fim de semana até</span>
         <select name="ate">
           <option value="">Qualquer valor</option>
-          {% for v in [400, 600, 800, 1000, 1500, 2000] %}<option value="{{ v }}" {% if max_price == v %}selected{% endif %}>{{ brl(v) }}</option>{% endfor %}
+          {% for v in [1000, 2000, 3000, 4000, 6000, 8000] %}<option value="{{ v }}" {% if max_price == v %}selected{% endif %}>{{ brl(v) }}</option>{% endfor %}
         </select>
       </label>
       <label class="fsel">
@@ -84,7 +84,7 @@
             {% if r.bedrooms %}<span>🛏️ {{ r.bedrooms }} {{ 'quarto' if r.bedrooms == 1 else 'quartos' }}</span>{% endif %}
             {% for a in r.amenity_list[:3] %}<span>{{ AMENITIES[a][1] }} {{ AMENITIES[a][0] }}</span>{% endfor %}
           </p>
-          {% if r.price_night %}<p class="price"><strong>{{ brl(r.price_night) }}</strong> <span class="muted">/ diária</span></p>
+          {% if r.price_weekend %}<p class="price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
           {% else %}<p class="price muted">Consulte o valor</p>{% endif %}
         </div>
       </a>
@@ -95,7 +95,7 @@
     <div class="empty">
       {% if filtering %}
         <p><strong>Nenhum rancho com esses filtros.</strong></p>
-        <p class="muted">Tente tirar uma comodidade ou aumentar o valor da diária.</p>
+        <p class="muted">Tente tirar uma comodidade ou aumentar o valor do fim de semana.</p>
         <a class="btn btn-dark" href="{{ url_for('index') }}#ranchos">Ver todos os ranchos</a>
       {% else %}
         <p><strong>Os primeiros ranchos estão chegando.</strong></p>

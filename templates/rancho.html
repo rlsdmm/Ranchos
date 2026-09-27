@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ r.name }}{% if r.region %}, {{ r.region }}{% endif %} | Rancho para alugar em {{ CITY_NAME }}{% endblock %}
-{% block description %}{{ r.summary or r.name }}{% if r.capacity %} Até {{ r.capacity }} pessoas.{% endif %}{% if r.price_night %} Diária a partir de {{ brl(r.price_night) }}.{% endif %} Fale direto com o dono pelo WhatsApp.{% endblock %}
+{% block description %}{{ r.summary or r.name }}{% if r.capacity %} Até {{ r.capacity }} pessoas.{% endif %}{% if r.price_weekend %} Fim de semana por {{ brl(r.price_weekend) }}.{% endif %} Fale direto com o dono pelo WhatsApp.{% endblock %}
 {% block body_class %}has-bottombar{% endblock %}
 {% block meta %}
   <meta property="og:title" content="{{ r.name }} | Rancho em {{ CITY_NAME }}">
@@ -94,14 +94,14 @@
 
     <aside class="book" id="reservar">
       <div class="book-card">
-        {% if r.price_night %}
-          <p class="book-price"><strong>{{ brl(r.price_night) }}</strong> <span class="muted">/ diária</span></p>
+        {% if r.price_weekend %}
+          <p class="book-price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
         {% else %}
           <p class="book-price"><strong>Consulte o valor</strong></p>
         {% endif %}
         <dl class="book-list">
-          {% if r.price_weekend %}<div><dt>Fim de semana</dt><dd>{{ brl(r.price_weekend) }}</dd></div>{% endif %}
-          {% if r.price_holiday %}<div><dt>Feriados</dt><dd>{{ r.price_holiday }}</dd></div>{% endif %}
+          <div><dt>Diária avulsa</dt><dd>{{ brl(r.price_night) if r.price_night else 'A combinar' }}</dd></div>
+          <div><dt>Feriados</dt><dd>{{ r.price_holiday or 'A combinar' }}</dd></div>
           {% if r.min_nights and r.min_nights > 1 %}<div><dt>Mínimo</dt><dd>{{ r.min_nights }} diárias</dd></div>{% endif %}
         </dl>
         {% if r.whatsapp_digits %}
@@ -138,7 +138,7 @@
           <div class="card-body">
             <h3>{{ o.name }}</h3>
             <p class="specs">{% if o.capacity %}<span>👥 até {{ o.capacity }}</span>{% endif %}</p>
-            {% if o.price_night %}<p class="price"><strong>{{ brl(o.price_night) }}</strong> <span class="muted">/ diária</span></p>{% endif %}
+            {% if o.price_weekend %}<p class="price"><strong>{{ brl(o.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>{% endif %}
           </div>
         </a>
       </li>
@@ -151,7 +151,7 @@
 {% if r.whatsapp_digits %}
 <div class="bottombar">
   <div>
-    {% if r.price_night %}<strong>{{ brl(r.price_night) }}</strong> <span class="muted small">/ diária</span>{% else %}<strong>Consulte</strong>{% endif %}
+    {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>{% else %}<strong>Consulte</strong>{% endif %}
   </div>
   <a class="btn btn-zap" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">Falar com {{ r.owner_name.split()[0] if r.owner_name else 'o dono' }}</a>
 </div>
