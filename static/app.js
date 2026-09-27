@@ -191,23 +191,88 @@
       return file; // formato que o navegador não abre (ex.: HEIC no Chrome): o servidor decide
     }
   }
-  if (editForm && input && window.DataTransfer && window.createImageBitmap) {
+  // Envio em lotes: salva os dados do rancho e depois manda as fotos aos poucos,
+  // para qualquer quantidade de fotos caber no limite por envio.
+  const LOTE_MB = 20, LOTE_FOTOS = 15;
+  function lotes(files) {
+    const out = [];
+    let atual = [], bytes = 0;
+    for (const f of files) {
+      if (atual.length && (atual.length >= LOTE_FOTOS || bytes + f.size > LOTE_MB * 1048576)) {
+        out.push(atual); atual = []; bytes = 0;
+      }
+      atual.push(f); bytes += f.size;
+    }
+    if (atual.length) out.push(atual);
+    return out;
+  }
+  async function postar(url, body, tentativas = 2) {
+    for (let t = 1; ; t++) {
+      try {
+        const resp = await fetch(url, { method: 'POST', body });
+        if (resp.ok) return resp;
+        if (t >= tentativas || resp.status < 500) throw new Error(`erro ${resp.status}`);
+      } catch (err) {
+        if (t >= tentativas) throw err;
+      }
+      await new Promise((r) => setTimeout(r, 1500)); // espera um pouco e tenta de novo
+    }
+  }
+  if (editForm && input && window.DataTransfer && window.createImageBitmap && window.fetch) {
     editForm.addEventListener('submit', async (e) => {
-      if (!input.files.length || editForm.dataset.ready) return;
+      if (!input.files.length) return; // sem fotos: salva do jeito normal
       e.preventDefault();
       const btn = editForm.querySelector('.sticky-save button');
       const status = document.getElementById('photo-count');
       btn.disabled = true;
-      const dt = new DataTransfer();
-      const files = [...input.files];
-      for (let n = 0; n < files.length; n++) {
-        status.textContent = `Preparando foto ${n + 1} de ${files.length}…`;
-        dt.items.add(await shrink(files[n]));
+      const files = [];
+      const originais = [...input.files];
+      for (let n = 0; n < originais.length; n++) {
+        status.textContent = `Preparando foto ${n + 1} de ${originais.length}…`;
+        files.push(await shrink(originais[n]));
       }
-      input.files = dt.files;
-      status.textContent = `Enviando ${files.length} foto(s)…`;
-      editForm.dataset.ready = '1';
-      editForm.submit();
+      const csrf = editForm.querySelector('[name=_csrf]').value;
+      let enviadas = 0, added = 0, skipped = 0;
+      try {
+        // 1) dados do rancho, sem as fotos (cria o rancho se for novo e descobre o id)
+        status.textContent = 'Salvando os dados do rancho…';
+        const dados = new FormData(editForm);
+        dados.delete('photos');
+        const resp = await postar(editForm.action, dados, 1);
+        const rid = (new URL(resp.url).pathname.match(/\/admin\/rancho\/(\d+)/) || [])[1];
+        if (!rid) throw new Error('não consegui salvar o rancho');
+        editForm.action = `/admin/rancho/${rid}`; // se precisar tentar de novo, não cria outro rancho
+        // 2) fotos em lotes
+        const grupos = lotes(files);
+        for (let i = 0; i < grupos.length; i++) {
+          const fim = enviadas + grupos[i].length;
+          status.textContent = grupos.length > 1
+            ? `Enviando lote ${i + 1} de ${grupos.length} (fotos ${enviadas + 1}–${fim} de ${files.length})…`
+            : `Enviando ${files.length} foto(s)…`;
+          const body = new FormData();
+          body.append('_csrf', csrf);
+          grupos[i].forEach((f) => body.append('photos', f));
+          if (i === grupos.length - 1) {
+            body.append('final', '1');
+            body.append('prev_added', added);
+            body.append('prev_skipped', skipped);
+          }
+          const data = await (await postar(`/admin/rancho/${rid}/fotos`, body)).json();
+          added += data.added; skipped += data.skipped; enviadas = fim;
+        }
+        const destino = `/admin/rancho/${rid}`;
+        if (location.pathname === destino) { location.hash = 'fotos'; location.reload(); } // mesmo endereço não recarrega sozinho
+        else location.href = `${destino}#fotos`;
+      } catch (err) {
+        // deixa selecionadas só as que faltaram, para continuar de onde parou
+        const resto = new DataTransfer();
+        files.slice(enviadas).forEach((f) => resto.items.add(f));
+        input.files = resto.files;
+        status.textContent = enviadas
+          ? `Parou no meio (${err.message}). ${enviadas} de ${files.length} fotos foram salvas; as ${files.length - enviadas} que faltam continuam selecionadas. Clique em Salvar rancho para continuar.`
+          : `Não foi possível enviar (${err.message}). Confira a internet e clique em Salvar rancho de novo.`;
+        btn.disabled = false;
+      }
     });
   }
 })();

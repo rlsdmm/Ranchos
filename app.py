@@ -608,6 +608,23 @@ def admin_photo(rid, pid, action):
     return redirect(url_for("admin_edit", rid=rid) + "#fotos")
 
 
+@app.route("/admin/rancho/<int:rid>/fotos", methods=["POST"])
+@admin_required
+def admin_photos_upload(rid):
+    """Recebe um lote de fotos (o navegador divide envios grandes em vários lotes)."""
+    r = db.session.get(Rancho, rid) or abort(404)
+    added, skipped = save_uploads(r, request.files.getlist("photos"))
+    db.session.commit()
+    if request.form.get("final"):  # último lote: um resumo só, em vez de uma mensagem por lote
+        total_added = to_int(request.form.get("prev_added")) + added
+        total_skipped = to_int(request.form.get("prev_skipped")) + skipped
+        msg = f"Rancho salvo. {total_added} foto(s) adicionada(s)."
+        if total_skipped:
+            msg += f" {total_skipped} arquivo(s) ignorado(s) por não serem imagens."
+        flash(msg, "ok")
+    return {"ok": True, "added": added, "skipped": skipped}
+
+
 @app.route("/admin/rancho/<int:rid>/fotos/ordem", methods=["POST"])
 @admin_required
 def admin_photo_order(rid):
