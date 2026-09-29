@@ -36,6 +36,41 @@
   <div class="kpi"><strong>{{ leads|selectattr('handled', 'equalto', false)|list|length }}</strong><span>donos querendo anunciar</span></div>
 </div>
 
+<h2 id="origem">De onde vêm os turistas</h2>
+{% if sources %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Origem</th><th class="num">Visitantes</th><th class="num">Visitas a ranchos</th><th class="num">Cliques no WhatsApp</th><th class="num">♥ Salvaram</th></tr></thead>
+  <tbody>
+  {% for s in sources %}
+    <tr><td>{{ s.label }}</td><td class="num">{{ s.visit }}</td><td class="num">{{ s.view }}</td><td class="num"><strong>{{ s.whatsapp }}</strong></td><td class="num">{{ s.fav }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="muted">Ainda sem dados. A origem começa a ser registrada a partir das próximas visitas.</p>
+{% endif %}
+<p class="muted small">Visitante = uma pessoa chegando ao site (conta de novo se voltar por outro link com etiqueta ou anúncio). "Direto" inclui links colados no WhatsApp, que não dizem de onde vieram: use etiqueta nos links que você divulgar.</p>
+
+<details class="link-builder">
+  <summary>Gerar link com etiqueta para divulgar</summary>
+  <div class="form">
+    <div class="cols-2">
+      <label>Onde você vai divulgar <input id="lb-source" placeholder="instagram, cartaz-loja-pesca, grupo-pesca-facebook" maxlength="40"></label>
+      <label>Página
+        <select id="lb-page">
+          <option value="/">Página inicial</option>
+          {% for r in ranchos if r.public %}<option value="/rancho/{{ r.slug }}">{{ r.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label>Link para usar <input id="lb-out" readonly data-base="{{ site_url() }}" placeholder="preencha o campo acima"></label>
+    <div class="row-btns"><button type="button" class="btn btn-outline" data-copy="#lb-out">Copiar link</button></div>
+    <p class="muted small">Use um nome diferente para cada lugar (ex.: <em>cartaz-posto</em> e <em>cartaz-mercado</em>) para saber qual funciona melhor. Anúncios do Google Ads e do Instagram/Facebook são reconhecidos sozinhos.</p>
+  </div>
+</details>
+
 <h2>Ranchos</h2>
 {% if ranchos %}
 <div class="table-wrap">

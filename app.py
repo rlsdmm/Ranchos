@@ -266,7 +266,9 @@ class Photo(db.Model):
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), index=True)
-    kind = db.Column(db.String(20), nullable=False)  # view | whatsapp | servico | fav (♥ na lista)
+    # visit (chegada ao site, sem rancho) | view | whatsapp | servico | fav (♥ na lista)
+    kind = db.Column(db.String(20), nullable=False)
+    source = db.Column(db.String(40), default="")  # de onde veio: instagram, google, google-ads, direto...
     created_at = db.Column(db.DateTime, default=now_utc, index=True)
 
 
@@ -298,6 +300,7 @@ with app.app_context():
         ("rancho", "fridges", "INTEGER DEFAULT 0"),
         ("rancho", "freezers", "INTEGER DEFAULT 0"),
         ("rancho", "beer_fridges", "INTEGER DEFAULT 0"),
+        ("event", "source", "VARCHAR(40) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -489,8 +492,76 @@ def categories_with_ranchos(ranchos=None):
 def log_event(rancho_id, kind):
     if is_admin() or current_owner() or BOT_RE.search(request.headers.get("User-Agent", "")):
         return
-    db.session.add(Event(rancho_id=rancho_id, kind=kind))
+    db.session.add(Event(rancho_id=rancho_id, kind=kind, source=session.get("src", "direto")))
     db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Origem das visitas
+# ---------------------------------------------------------------------------
+# Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie"}
+# Site de onde veio (pelo Referer) -> nome da origem
+REFERRER_SOURCES = [
+    (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
+    (re.compile(r"(^|\.)(facebook\.com|fb\.com|fb\.me)$"), "facebook"),
+    (re.compile(r"(^|\.)google\.[a-z.]+$"), "google"),
+    (re.compile(r"(^|\.)(bing\.com|yahoo\.com|duckduckgo\.com)$"), "outros-buscadores"),
+    (re.compile(r"(^|\.)(whatsapp\.com|wa\.me)$"), "whatsapp"),
+    (re.compile(r"(^|\.)(youtube\.com|youtu\.be)$"), "youtube"),
+    (re.compile(r"(^|\.)(tiktok\.com)$"), "tiktok"),
+]
+SOURCE_LABELS = {
+    "direto": "Direto (link no WhatsApp, digitado ou app)",
+    "google": "Google (busca)",
+    "google-ads": "Google Ads (anúncio)",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+    "meta": "Instagram/Facebook (link com fbclid)",
+    "whatsapp": "WhatsApp Web",
+    "outros-buscadores": "Outros buscadores",
+}
+
+
+def clean_source(v):
+    return re.sub(r"[^a-z0-9_-]+", "-", (v or "").strip().lower()).strip("-")[:40]
+
+
+def detect_source():
+    """Etiqueta do link > marca de anúncio > site de onde veio > direto."""
+    args = request.args
+    if args.get("utm_source"):
+        return clean_source(args["utm_source"]) or "direto"
+    if args.get("gclid") or args.get("gbraid") or args.get("wbraid"):
+        return "google-ads"
+    ref_host = urlparse(request.headers.get("Referer", "")).netloc.lower().split(":")[0]
+    if ref_host and ref_host != request.host.split(":")[0]:
+        for pattern, name in REFERRER_SOURCES:
+            if pattern.search(ref_host):
+                return name
+        if args.get("fbclid"):
+            return "meta"
+        return clean_source(ref_host.removeprefix("www."))  # outro site qualquer: guarda o domínio
+    if args.get("fbclid"):
+        return "meta"
+    return "direto"
+
+
+@app.before_request
+def track_source():
+    """Guarda a origem na sessão na chegada ao site e conta um "visitante" por sessão.
+    Um link com etiqueta ou de anúncio clicado depois troca a origem (vale o último anúncio)."""
+    if request.method != "GET" or request.endpoint not in LANDING_ENDPOINTS:
+        return
+    if CANONICAL_HOST and request.host != CANONICAL_HOST:  # vai ser redirecionado; conta lá
+        return
+    tagged = any(request.args.get(k) for k in ("utm_source", "gclid", "gbraid", "wbraid", "fbclid"))
+    if "src" in session and not tagged:
+        return
+    new = detect_source()
+    if session.get("src") != new:
+        session["src"] = new
+        log_event(None, "visit")
 
 
 def month_start(dt):
@@ -504,6 +575,22 @@ def add_months(dt, n):
 
 MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
              "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+
+def source_stats(since):
+    """Linhas da tabela "De onde vêm os turistas", da origem que mais trouxe contato para a menor."""
+    q = (db.session.query(Event.source, Event.kind, func.count(Event.id))
+         .filter(Event.created_at >= since).group_by(Event.source, Event.kind))
+    rows = {}
+    for src, kind, n in q.all():
+        src = src or "sem-registro"  # eventos de antes de existir a origem
+        row = rows.setdefault(src, {"source": src, "label": SOURCE_LABELS.get(src, src),
+                                    "visit": 0, "view": 0, "whatsapp": 0, "fav": 0})
+        if kind in row:
+            row[kind] = n
+    if "sem-registro" in rows:
+        rows["sem-registro"]["label"] = "Antes do registro de origem"
+    return sorted(rows.values(), key=lambda r: (-r["whatsapp"], -r["visit"], -r["view"]))
 
 
 def counts_since(since, rancho_id=None):
@@ -902,7 +989,8 @@ def admin_home():
         "servico": sum(n for (_, k), n in c30.items() if k == "servico"),
         "fav": sum(n for (_, k), n in c30.items() if k == "fav"),
     }
-    return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals)
+    return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals,
+                           sources=source_stats(since))
 
 
 def fill_rancho(r, form):

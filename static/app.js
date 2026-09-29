@@ -173,6 +173,20 @@
     });
   });
 
+  // Painel: gerador de link com etiqueta de origem (?utm_source=...)
+  const lbSource = document.getElementById('lb-source');
+  if (lbSource) {
+    const page = document.getElementById('lb-page');
+    const out = document.getElementById('lb-out');
+    const build = () => {
+      const src = lbSource.value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+      out.value = src ? `${out.dataset.base}${page.value}?utm_source=${src}` : '';
+    };
+    lbSource.addEventListener('input', build);
+    page.addEventListener('change', build);
+  }
+
   // Photo picker feedback
   const input = document.getElementById('photo-input');
   if (input) {

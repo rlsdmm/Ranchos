@@ -346,6 +346,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pending-box h2 { margin: 0; font-size: 20px; }
 .pending-box p { margin: 0; }
 .pending-box form { margin: 0; }
+.link-builder { margin: 14px 0 8px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.link-builder summary { cursor: pointer; font-weight: 700; color: var(--rio-2); }
+.link-builder .form { display: grid; gap: 12px; margin-top: 12px; }
 .form { display: grid; gap: 14px; }
 .form label { display: grid; gap: 6px; font-weight: 650; font-size: 15px; }
 .form label .muted { font-weight: 400; }
