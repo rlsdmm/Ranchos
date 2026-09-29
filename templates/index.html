@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_card.html" import card with context %}
 {% block meta %}
   <meta property="og:title" content="Ranchos para alugar em {{ CITY_NAME }}">
   <meta property="og:description" content="Ranchos verificados, beira-rio, com piscina e rampa para barco. Fale direto com o dono.">
@@ -61,35 +62,7 @@
 
   {% if ranchos %}
   <ul class="grid">
-    {% for r in ranchos %}
-    <li class="card">
-      <a href="{{ url_for('rancho', slug=r.slug) }}" class="card-link">
-        <div class="card-img">
-          {% if r.cover %}
-            <img src="{{ r.cover.url('t') }}" alt="{{ r.name }}" loading="{{ 'eager' if loop.index <= 3 else 'lazy' }}" width="720" height="480">
-          {% else %}
-            <div class="noimg">🏡</div>
-          {% endif %}
-          <div class="badges">
-            {% if r.featured %}<span class="badge badge-sun">Destaque</span>{% endif %}
-            {% if r.verified %}<span class="badge badge-ok">✓ Verificado</span>{% endif %}
-          </div>
-        </div>
-        <div class="card-body">
-          <h3>{{ r.name }}</h3>
-          {% if r.region %}<p class="muted">{{ r.region }}</p>{% endif %}
-          {% if r.summary %}<p class="card-sum">{{ r.summary }}</p>{% endif %}
-          <p class="specs">
-            {% if r.capacity %}<span>👥 até {{ r.capacity }}</span>{% endif %}
-            {% if r.bedrooms %}<span>🛏️ {{ r.bedrooms }} {{ 'quarto' if r.bedrooms == 1 else 'quartos' }}</span>{% endif %}
-            {% for a in r.amenity_list[:3] %}<span>{{ AMENITIES[a][1] }} {{ AMENITIES[a][0] }}</span>{% endfor %}
-          </p>
-          {% if r.price_weekend %}<p class="price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
-          {% else %}<p class="price muted">Consulte o valor</p>{% endif %}
-        </div>
-      </a>
-    </li>
-    {% endfor %}
+    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
   </ul>
   {% else %}
     <div class="empty">
@@ -105,6 +78,17 @@
     </div>
   {% endif %}
   </div>
+
+  {% if categories %}
+  <nav class="cat-links" aria-label="Ranchos por tipo">
+    <h2>Procure por tipo</h2>
+    <ul>
+      {% for slug, c, n in categories %}
+      <li><a href="{{ url_for('category', slug=slug) }}">{{ c.label }} <span>{{ n }}</span></a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
 </section>
 
 <section class="safety" id="seguranca">

@@ -49,6 +49,10 @@
     </div>
     <div class="wrap"><p class="muted small">© {{ year }} {{ SITE_NAME }}</p></div>
   </footer>
+  <div class="favbar" id="favbar" hidden>
+    <span id="favbar-count"></span>
+    <a class="btn btn-sun" id="favbar-link" href="{{ url_for('group_list') }}">Ver lista e mandar pro grupo</a>
+  </div>
   <script src="{{ url_for('static', filename='app.js') }}?v=1" defer></script>
 </body>
 </html>

@@ -1,0 +1,33 @@
+{# Card de rancho usado na página inicial, nas páginas por tipo e na lista para o grupo. #}
+{% macro card(r, eager=False) %}
+<li class="card">
+  <a href="{{ url_for('rancho', slug=r.slug) }}" class="card-link">
+    <div class="card-img">
+      {% if r.cover %}
+        <img src="{{ r.cover.url('t') }}" alt="{{ r.name }}" loading="{{ 'eager' if eager else 'lazy' }}" width="720" height="480">
+      {% else %}
+        <div class="noimg">🏡</div>
+      {% endif %}
+      <div class="badges">
+        {% if r.featured %}<span class="badge badge-sun">Destaque</span>{% endif %}
+        {% if r.verified %}<span class="badge badge-ok">✓ Verificado</span>{% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>{{ r.name }}</h3>
+      {% if r.region %}<p class="muted">{{ r.region }}</p>{% endif %}
+      {% if r.summary %}<p class="card-sum">{{ r.summary }}</p>{% endif %}
+      <p class="specs">
+        {% if r.capacity %}<span>👥 até {{ r.capacity }}</span>{% endif %}
+        {% if r.bedrooms %}<span>🛏️ {{ r.bedrooms }} {{ 'quarto' if r.bedrooms == 1 else 'quartos' }}</span>{% endif %}
+        {% for a in r.amenity_list[:3] %}<span>{{ AMENITIES[a][1] }} {{ AMENITIES[a][0] }}</span>{% endfor %}
+      </p>
+      {% if r.price_weekend %}<p class="price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
+      {% else %}<p class="price muted">Consulte o valor</p>{% endif %}
+    </div>
+  </a>
+  {# fora do link: botão dentro de <a> não é HTML válido #}
+  <button type="button" class="fav" data-fav="{{ r.slug }}" data-on="♥" data-off="♡"
+          aria-pressed="false" aria-label="Salvar {{ r.name }} na lista para o grupo">♡</button>
+</li>
+{% endmacro %}

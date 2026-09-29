@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_card.html" import card with context %}
+{% block title %}{{ cat.title }} para alugar em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}{{ ranchos|length }} {{ cat.title|lower }} para alugar em {{ CITY_NAME }}. Fotos reais, valor do fim de semana e contato direto com o dono pelo WhatsApp.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('category', slug=slug) }}">
+  <meta property="og:title" content="{{ cat.title }} em {{ CITY_NAME }}">
+  <meta property="og:description" content="{{ intro }}">
+  <meta property="og:type" content="website">
+  {% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
+{% endblock %}
+{% block content %}
+<section class="wrap cat-page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › {{ cat.label }}</nav>
+  <h1>{{ cat.title }} para alugar em {{ CITY_NAME }}</h1>
+  <p class="cat-intro">{{ intro }}</p>
+
+  <div class="results-head">
+    <h2>{{ ranchos|length }} {{ 'rancho' if ranchos|length == 1 else 'ranchos' }}</h2>
+    <a class="link" href="{{ url_for('index') }}#ranchos">Ver todos os ranchos</a>
+  </div>
+  <ul class="grid">
+    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
+  </ul>
+
+  {% if others %}
+  <nav class="cat-links" aria-label="Outros tipos de rancho">
+    <h2>Outros tipos de rancho</h2>
+    <ul>
+      {% for s, c, n in others %}
+      <li><a href="{{ url_for('category', slug=s) }}">{{ c.label }} <span>{{ n }}</span></a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

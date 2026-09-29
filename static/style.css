@@ -126,6 +126,56 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
 .card-link:hover .card-img img { transform: scale(1.03); }
 .noimg { display: grid; place-items: center; height: 100%; font-size: 48px; }
+
+/* ♥ lista para o grupo */
+.card { position: relative; }
+.fav {
+  position: absolute; top: 10px; right: 10px; width: 42px; height: 42px; border-radius: 50%;
+  border: 0; background: rgba(255,255,255,.94); color: var(--ink); font-size: 22px; line-height: 1;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); transition: transform .15s ease;
+}
+.fav:active { transform: scale(.9); }
+.fav.on { color: #d63a4b; }
+.fav-inline {
+  position: static; width: auto; height: auto; border-radius: 999px; padding: 7px 14px;
+  font-size: 15px; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--line); background: var(--card);
+}
+.fav-inline.on { box-shadow: inset 0 0 0 1.5px #d63a4b; }
+.badges-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.favbar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 30;
+  display: flex; align-items: center; gap: 14px; padding: 10px 10px 10px 18px; border-radius: 999px;
+  background: var(--rio); color: #fff; font-weight: 700; box-shadow: 0 10px 30px -8px rgba(0,0,0,.45);
+  width: max-content; max-width: calc(100% - 24px);
+}
+.favbar[hidden] { display: none; }
+.favbar .btn { white-space: nowrap; padding: 10px 16px; }
+@media (max-width: 900px) { .has-bottombar .favbar { bottom: 92px; } } /* acima da barra do WhatsApp */
+@media (max-width: 480px) { .favbar { gap: 8px; font-size: 14px; padding-left: 14px; } .favbar .btn { padding: 9px 12px; font-size: 14px; } }
+
+/* páginas por tipo */
+.cat-page h1 { font-size: clamp(30px, 4.5vw, 46px); font-weight: 850; font-stretch: 112%; letter-spacing: -0.02em; }
+.cat-intro { max-width: 62ch; font-size: 18px; margin: 12px 0 0; }
+.cat-links { margin: 48px 0 8px; }
+.cat-links h2 { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+.cat-links ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-links a {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px;
+  background: var(--card); border: 1.5px solid var(--line); color: var(--ink); font-weight: 700; text-decoration: none;
+}
+.cat-links a:hover { border-color: var(--rio-2); }
+.cat-links a span { background: var(--rio-soft); color: var(--rio); border-radius: 999px; padding: 1px 8px; font-size: 13px; }
+
+/* lista para o grupo: tabela lado a lado */
+.list-page h1 { font-size: clamp(28px, 4vw, 42px); font-weight: 850; font-stretch: 110%; }
+.share-btns { margin: 16px 0 22px; }
+.compare { margin-bottom: 30px; }
+.compare .table th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; white-space: nowrap; color: var(--muted); font-weight: 700; }
+.compare .table thead th { font-size: 15px; color: var(--ink); min-width: 150px; }
+.compare .yesno { text-align: center; font-weight: 700; }
+.list-hint { margin-top: 18px; }
+.swipe-hint { display: none; margin: 0 0 8px; }
+@media (max-width: 640px) { .swipe-hint { display: block; } }
 .badges { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
 .badge {
   display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px;

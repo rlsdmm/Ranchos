@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_card.html" import card with context %}
+{% set n = ranchos|length %}
+{% block title %}{% if n %}{{ n }} {{ 'rancho separado' if n == 1 else 'ranchos separados' }} para o grupo{% else %}Minha lista{% endif %} | {{ SITE_NAME }}{% endblock %}
+{% block description %}{% if n %}{{ ranchos|map(attribute='name')|join(', ') }}: ranchos em {{ CITY_NAME }} separados para o grupo escolher.{% else %}Salve ranchos e mande a lista para o grupo escolher.{% endif %}{% endblock %}
+{% block meta %}
+  <meta name="robots" content="noindex">
+  {% if n %}
+  <meta property="og:title" content="{{ n }} {{ 'rancho separado' if n == 1 else 'ranchos separados' }} em {{ CITY_NAME }} 🏡">
+  <meta property="og:description" content="{{ ranchos|map(attribute='name')|join(' · ') }}">
+  <meta property="og:type" content="website">
+  {% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
+  {% endif %}
+{% endblock %}
+{% block content %}
+<section class="wrap list-page" id="lista">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Lista para o grupo</nav>
+
+  {% if n %}
+  <h1>{{ 'Rancho separado' if n == 1 else n ~ ' ranchos separados' }} para o grupo</h1>
+  <p class="muted">Mande a lista no grupo do WhatsApp para todo mundo ver os ranchos lado a lado e escolher junto.</p>
+  <div class="row-btns share-btns">
+    <a class="btn btn-zap" href="{{ wa_link }}" target="_blank" rel="noopener">Mandar no WhatsApp</a>
+    <button type="button" class="btn btn-outline" data-copy-text="{{ share_url }}">Copiar link</button>
+  </div>
+
+  {% if n > 1 %}<p class="muted small swipe-hint">↔ Arraste a tabela para o lado para ver todos</p>{% endif %}
+  <div class="table-wrap compare">
+    <table class="table">
+      <thead><tr><th></th>{% for r in ranchos %}<th><a class="link" href="{{ url_for('rancho', slug=r.slug) }}">{{ r.name }}</a></th>{% endfor %}</tr></thead>
+      <tbody>
+        <tr><th>Fim de semana</th>{% for r in ranchos %}<td><strong>{{ brl(r.price_weekend) if r.price_weekend else 'Consulte' }}</strong></td>{% endfor %}</tr>
+        <tr><th>Pessoas</th>{% for r in ranchos %}<td>{{ 'até ' ~ r.capacity if r.capacity else '—' }}</td>{% endfor %}</tr>
+        <tr><th>Quartos</th>{% for r in ranchos %}<td>{{ r.bedrooms or '—' }}</td>{% endfor %}</tr>
+        <tr><th>Banheiros</th>{% for r in ranchos %}<td>{{ r.bathrooms or '—' }}</td>{% endfor %}</tr>
+        <tr><th>Camas</th>{% for r in ranchos %}<td>{{ r.beds or '—' }}</td>{% endfor %}</tr>
+        <tr><th>Mínimo</th>{% for r in ranchos %}<td>{{ r.min_nights ~ ' diárias' if r.min_nights and r.min_nights > 1 else '—' }}</td>{% endfor %}</tr>
+        {% for key in ['piscina', 'beira_rio', 'rampa', 'pesca', 'area_gourmet', 'ar', 'wifi', 'pet'] %}
+        <tr><th>{{ AMENITIES[key][1] }} {{ AMENITIES[key][0] }}</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if key in r.amenity_list else '—' }}</td>{% endfor %}</tr>
+        {% endfor %}
+        <tr><th>Verificado</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if r.verified else '—' }}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul class="grid">
+    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
+  </ul>
+  <p class="muted small list-hint">Toque no ♥ para tirar ou pôr ranchos na <em>sua</em> lista. Quem recebeu o link pode montar a própria lista do mesmo jeito.</p>
+  {% else %}
+  <div class="empty" id="lista-vazia">
+    <p><strong>Sua lista está vazia.</strong></p>
+    <p class="muted">Toque no ♡ dos ranchos que você gostou. Depois é só mandar a lista para o grupo escolher junto.</p>
+    <a class="btn btn-dark" href="{{ url_for('index') }}#ranchos">Ver ranchos</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

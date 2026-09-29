@@ -1,6 +1,62 @@
 (() => {
   'use strict';
 
+  // Lista para o grupo: os ranchos salvos ficam no navegador de cada visitante
+  // (sem login). O link mandado ao grupo leva os ranchos no endereço (/lista?r=a,b,c).
+  const FAV_KEY = 'ranchos-favoritos';
+  const FAV_MAX = 12;
+  const readFavs = () => {
+    try { const v = JSON.parse(localStorage.getItem(FAV_KEY)); return Array.isArray(v) ? v : []; }
+    catch { return []; }
+  };
+  const writeFavs = (list) => { try { localStorage.setItem(FAV_KEY, JSON.stringify(list)); } catch { /* modo anônimo */ } };
+  const listUrl = (favs) => `/lista?r=${favs.map(encodeURIComponent).join(',')}`;
+  function syncFavs() {
+    const favs = readFavs();
+    document.querySelectorAll('[data-fav]').forEach((b) => {
+      const on = favs.includes(b.dataset.fav);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = on ? b.dataset.on : b.dataset.off;
+    });
+    const bar = document.getElementById('favbar');
+    if (bar) {
+      const onListPage = !!document.getElementById('lista');
+      bar.hidden = !favs.length || onListPage;
+      document.getElementById('favbar-count').textContent =
+        `♥ ${favs.length} ${favs.length === 1 ? 'rancho salvo' : 'ranchos salvos'}`;
+      document.getElementById('favbar-link').href = listUrl(favs);
+    }
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fav]');
+    if (!b) return;
+    e.preventDefault();
+    let favs = readFavs();
+    const slug = b.dataset.fav;
+    if (favs.includes(slug)) favs = favs.filter((s) => s !== slug);
+    else if (favs.length >= FAV_MAX) { alert(`A lista vai até ${FAV_MAX} ranchos. Tire algum antes de salvar outro.`); return; }
+    else favs = [...favs, slug];
+    writeFavs(favs);
+    syncFavs();
+  });
+  // /lista sem ranchos no endereço: abre a lista salva neste navegador
+  if (document.getElementById('lista-vazia') && !new URLSearchParams(location.search).get('r')) {
+    const favs = readFavs();
+    if (favs.length) location.replace(listUrl(favs));
+  }
+  syncFavs();
+  window.addEventListener('pageshow', syncFavs); // volta pelo botão "voltar" do celular
+  document.querySelectorAll('[data-copy-text]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(btn.dataset.copyText); }
+      catch { prompt('Copie o link:', btn.dataset.copyText); }
+      const old = btn.textContent;
+      btn.textContent = 'Link copiado';
+      setTimeout(() => { btn.textContent = old; }, 1600);
+    });
+  });
+
   // Filtros: busca só a lista de resultados em segundo plano, sem recarregar a página
   const filters = document.getElementById('filters');
   const results = document.getElementById('results');
@@ -26,6 +82,7 @@
         const fresh = doc.getElementById('results');
         if (!fresh) throw new Error('sem resultados');
         results.innerHTML = fresh.innerHTML;
+        syncFavs(); // os cards novos vêm com o ♡ vazio
         history.replaceState(null, '', `${url}#ranchos`);
       } catch (err) {
         if (err.name !== 'AbortError') location.href = `${url}#ranchos`; // se falhar, faz do jeito antigo

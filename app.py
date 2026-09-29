@@ -92,6 +92,40 @@ AMENITIES = {
     "roupa_cama": ("Roupa de cama inclusa", "🛏️"),
 }
 
+# Páginas por tipo de rancho (/ranchos/<slug>), feitas para as buscas do Google.
+# "amenity" filtra pela comodidade; "min_cap" pela quantidade de pessoas.
+CATEGORIES = {
+    "com-piscina": dict(
+        label="Com piscina", amenity="piscina", title="Ranchos com piscina",
+        intro="Ranchos com piscina para alugar em {city}, para a turma aproveitar o sol sem sair do rancho. "
+              "Veja as fotos, quantas pessoas cabem e o valor do fim de semana, e combine direto com o dono pelo WhatsApp."),
+    "beira-rio": dict(
+        label="Na beira do rio", amenity="beira_rio", title="Ranchos na beira do rio",
+        intro="Ranchos na beira d'água em {city}, para acordar com vista para o rio, nadar e ver o pôr do sol. "
+              "Compare os ranchos e fale direto com o dono pelo WhatsApp."),
+    "para-pesca": dict(
+        label="Para pesca", amenity="pesca", title="Ranchos para pesca",
+        intro="Ranchos bons para pescaria em {city}. Antes de ir, confira as regras de pesca e os períodos de "
+              "defeso da região. Veja fotos, estrutura e o valor do fim de semana de cada rancho."),
+    "com-rampa-para-barco": dict(
+        label="Com rampa para barco", amenity="rampa", title="Ranchos com rampa para barco",
+        intro="Ranchos em {city} com rampa para colocar o barco ou o jet ski na água. "
+              "Veja fotos e detalhes e combine datas direto com o dono."),
+    "que-aceitam-pet": dict(
+        label="Aceitam pet", amenity="pet", title="Ranchos que aceitam pet",
+        intro="Ranchos em {city} que aceitam animais de estimação, para o cachorro também curtir o fim de semana. "
+              "Avise o dono antes sobre o seu pet."),
+    "com-area-gourmet": dict(
+        label="Com área gourmet", amenity="area_gourmet", title="Ranchos com área gourmet",
+        intro="Ranchos em {city} com área gourmet para o churrasco e os almoços em grupo. "
+              "Veja fotos, estrutura e o valor do fim de semana."),
+    "para-grupos-grandes": dict(
+        label="Para 20 pessoas ou mais", min_cap=20, title="Ranchos para grupos grandes",
+        intro="Ranchos em {city} que recebem 20 pessoas ou mais, para família grande, aniversário ou a turma toda. "
+              "Confira quartos, camas e o valor do fim de semana de cada um."),
+}
+LIST_MAX = 12  # ranchos numa lista para o grupo
+
 BOT_RE = re.compile(r"bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|curl|wget|python", re.I)
 
 
@@ -405,6 +439,27 @@ def public_ranchos():
     return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
 
 
+def default_order(ranchos):
+    return sorted(ranchos, key=lambda r: (not r.featured, not r.verified, -(r.updated_at or now_utc()).timestamp()))
+
+
+def in_category(r, cat):
+    if cat.get("amenity") and cat["amenity"] not in r.amenity_list:
+        return False
+    return (r.capacity or 0) >= cat.get("min_cap", 0)
+
+
+def categories_with_ranchos(ranchos=None):
+    """[(slug, categoria, quantidade)] só dos tipos que têm rancho: página vazia não ajuda no Google."""
+    ranchos = public_ranchos().all() if ranchos is None else ranchos
+    out = []
+    for slug, cat in CATEGORIES.items():
+        n = sum(1 for r in ranchos if in_category(r, cat))
+        if n:
+            out.append((slug, cat, n))
+    return out
+
+
 def log_event(rancho_id, kind):
     if is_admin() or current_owner() or BOT_RE.search(request.headers.get("User-Agent", "")):
         return
@@ -497,11 +552,38 @@ def index():
     elif order == "capacidade":
         ranchos.sort(key=lambda r: -(r.capacity or 0))
     else:
-        ranchos.sort(key=lambda r: (not r.featured, not r.verified, -(r.updated_at or now_utc()).timestamp()))
+        ranchos = default_order(ranchos)
 
     filtering = bool(cap or max_price or wanted)
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
-                           wanted=wanted, order=order, filtering=filtering)
+                           wanted=wanted, order=order, filtering=filtering,
+                           categories=categories_with_ranchos())
+
+
+@app.route("/ranchos/<slug>")
+def category(slug):
+    cat = CATEGORIES.get(slug) or abort(404)
+    everyone = public_ranchos().all()
+    ranchos = default_order([r for r in everyone if in_category(r, cat)])
+    if not ranchos:
+        abort(404)
+    others = [c for c in categories_with_ranchos(everyone) if c[0] != slug]
+    return render_template("category.html", slug=slug, cat=cat, ranchos=ranchos, others=others,
+                           intro=cat["intro"].format(city=CITY_NAME))
+
+
+@app.route("/lista")
+def group_list():
+    """Lista de ranchos para mandar ao grupo. Os ranchos vão no próprio endereço
+    (?r=slug1,slug2), então quem recebe o link vê a mesma lista, sem login."""
+    slugs = [s for s in dict.fromkeys(request.args.get("r", "").split(",")) if s][:LIST_MAX]
+    found = {r.slug: r for r in public_ranchos().filter(Rancho.slug.in_(slugs)).all()} if slugs else {}
+    ranchos = [found[s] for s in slugs if s in found]
+    share_url = f"{site_url()}/lista?r={','.join(r.slug for r in ranchos)}" if ranchos else ""
+    share_text = (f"Separei {'esses ranchos' if len(ranchos) > 1 else 'esse rancho'} em {CITY_NAME} "
+                  f"pra gente escolher: {share_url}")
+    return render_template("lista.html", ranchos=ranchos, share_url=share_url,
+                           wa_link=f"https://wa.me/?text={quote(share_text)}" if ranchos else "")
 
 
 @app.route("/rancho/<slug>")
@@ -605,7 +687,10 @@ def robots():
 def sitemap():
     base = site_url()
     urls = [(f"{base}/", None), (f"{base}/anuncie", None)]
-    for r in public_ranchos().all():
+    ranchos = public_ranchos().all()
+    for slug, _, _ in categories_with_ranchos(ranchos):
+        urls.append((f"{base}/ranchos/{slug}", None))
+    for r in ranchos:
         urls.append((f"{base}/rancho/{r.slug}", r.updated_at))
     items = "".join(
         f"<url><loc>{u}</loc>{f'<lastmod>{d:%Y-%m-%d}</lastmod>' if d else ''}</url>" for u, d in urls)
