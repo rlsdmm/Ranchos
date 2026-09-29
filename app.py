@@ -178,6 +178,15 @@ class Owner(db.Model):
         return check_password_hash(self.password_hash, pw)
 
 
+class LoginThrottle(db.Model):
+    """Senhas erradas por conta. Fica no banco (e não na memória) porque o site roda em
+    várias instâncias e workers ao mesmo tempo."""
+    key = db.Column(db.String(160), primary_key=True)  # "admin" ou "owner:<login>"
+    failures = db.Column(db.Integer, default=0)
+    window_start = db.Column(db.DateTime, default=now_utc)
+    locked_until = db.Column(db.DateTime)
+
+
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id"), nullable=False, index=True)
@@ -619,8 +628,50 @@ MIN_PASSWORD = 8
 _DUMMY_HASH = generate_password_hash(secrets.token_hex(8))
 
 
+MAX_FAILURES = 5                  # senhas erradas seguidas...
+FAILURE_WINDOW = timedelta(minutes=15)
+LOCK_TIME = timedelta(minutes=15)  # ...bloqueiam a conta por este tempo
+
+
 def normalize_login(v):
     return (v or "").strip().lower()
+
+
+def throttle_key(login):
+    return f"owner:{login}" if login else "admin"
+
+
+def locked_minutes(key):
+    """Minutos que ainda faltam de bloqueio (0 = liberado)."""
+    t = db.session.get(LoginThrottle, key)
+    if t and t.locked_until and t.locked_until > now_utc():
+        return max(1, int((t.locked_until - now_utc()).total_seconds() // 60) + 1)
+    return 0
+
+
+def register_failure(key):
+    """Conta uma senha errada; devolve quantas tentativas ainda restam (0 = acabou de bloquear)."""
+    now = now_utc()
+    t = db.session.get(LoginThrottle, key)
+    if not t:
+        t = LoginThrottle(key=key, failures=0, window_start=now)
+        db.session.add(t)
+    if not t.window_start or t.window_start < now - FAILURE_WINDOW:
+        t.failures, t.window_start = 0, now
+    t.failures = (t.failures or 0) + 1
+    left = MAX_FAILURES - t.failures
+    if left <= 0:
+        t.locked_until, t.failures, t.window_start = now + LOCK_TIME, 0, now
+        left = 0
+    db.session.commit()
+    return left
+
+
+def clear_failures(key):
+    t = db.session.get(LoginThrottle, key)
+    if t:
+        db.session.delete(t)
+        db.session.commit()
 
 
 def temp_password():
@@ -638,8 +689,15 @@ def admin_login():
         password = request.form.get("password", "")
         nxt = request.args.get("next", "")
         nxt = nxt if nxt.startswith("/admin") else url_for("admin_home")
+        key = throttle_key(login)
+        wait = locked_minutes(key)
+        if wait:  # bloqueada: nem confere a senha, senão dava para continuar chutando
+            flash(f"Muitas senhas erradas. Por segurança, o acesso ficou bloqueado; "
+                  f"tente de novo em {wait} minuto(s).", "error")
+            return render_template("admin/login.html", login=login), 429
         if not login:  # administrador: só a senha, como sempre foi
             if ADMIN_PASSWORD and hmac.compare_digest(password, ADMIN_PASSWORD):
+                clear_failures(key)
                 session.clear()
                 session.permanent = True
                 session["admin"] = True
@@ -647,6 +705,7 @@ def admin_login():
         else:
             o = Owner.query.filter_by(login=login).first()
             if o and o.active and o.check_password(password):
+                clear_failures(key)
                 session.clear()
                 session.permanent = True
                 session["owner_id"] = o.id
@@ -655,7 +714,14 @@ def admin_login():
                 return redirect(url_for("owner_password") if o.must_change else nxt)
             if not o:
                 check_password_hash(_DUMMY_HASH, password)
-        flash("Login ou senha incorretos." if login else "Senha incorreta.", "error")
+        left = register_failure(key)
+        msg = "Login ou senha incorretos." if login else "Senha incorreta."
+        if left == 0:
+            msg += f" Por segurança, o acesso ficou bloqueado por {int(LOCK_TIME.total_seconds() // 60)} minutos."
+        elif left <= 2:
+            msg += f" Mais {left} tentativa(s) errada(s) e o acesso fica bloqueado por {int(LOCK_TIME.total_seconds() // 60)} minutos."
+        flash(msg, "error")
+        return render_template("admin/login.html", login=login), 401
     return render_template("admin/login.html")
 
 
@@ -1011,7 +1077,17 @@ def admin_owner(oid):
             flash("Conta salva.", "ok")
             return redirect(url_for("admin_owner", oid=o.id))
     ranchos = Rancho.query.order_by(Rancho.name).all()
-    return render_template("admin/owner.html", o=o, ranchos=ranchos)
+    return render_template("admin/owner.html", o=o, ranchos=ranchos,
+                           locked=locked_minutes(throttle_key(o.login)))
+
+
+@app.route("/admin/donos/<int:oid>/desbloquear", methods=["POST"])
+@admin_required
+def admin_owner_unlock(oid):
+    o = db.session.get(Owner, oid) or abort(404)
+    clear_failures(throttle_key(o.login))
+    flash(f"Conta {o.login} desbloqueada.", "ok")
+    return redirect(url_for("admin_owner", oid=o.id))
 
 
 @app.route("/admin/donos/<int:oid>/nova-senha", methods=["POST"])
@@ -1022,6 +1098,7 @@ def admin_owner_reset(oid):
     o.set_password(password)
     o.must_change = True
     db.session.commit()
+    clear_failures(throttle_key(o.login))  # senha nova também desbloqueia
     flash(f"Senha provisória nova de {o.login}: {password} · Passe para o dono: ela não aparece de novo, "
           "e ele vai trocar no próximo acesso.", "ok")
     return redirect(url_for("admin_owner", oid=o.id))

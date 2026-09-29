@@ -11,6 +11,16 @@
   {% if o.must_change %} · ainda com senha provisória{% endif %}
 </p>
 
+{% if locked %}
+<div class="pending-box">
+  <p><strong>Conta bloqueada por senhas erradas</strong> (libera sozinha em {{ locked }} minuto(s)). Se foi o próprio dono errando, pode desbloquear agora.</p>
+  <form method="post" action="{{ url_for('admin_owner_unlock', oid=o.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn btn-dark btn-sm">Desbloquear agora</button>
+  </form>
+</div>
+{% endif %}
+
 <form method="post" class="form form-card">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <div class="cols-2">
