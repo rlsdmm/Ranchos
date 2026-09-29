@@ -69,6 +69,18 @@
       </section>
       {% endif %}
 
+      {% if r.internet or r.fridges or r.beer_fridges or r.freezers %}
+      <section class="block">
+        <h2>Cozinha, bebidas e internet</h2>
+        <ul class="amenities">
+          {% if r.fridges %}<li><span aria-hidden="true">🧊</span>{{ r.fridges }} {{ 'geladeira' if r.fridges == 1 else 'geladeiras' }}</li>{% endif %}
+          {% if r.beer_fridges %}<li><span aria-hidden="true">🍺</span>{{ r.beer_fridges }} {{ 'cervejeira' if r.beer_fridges == 1 else 'cervejeiras' }}</li>{% endif %}
+          {% if r.freezers %}<li><span aria-hidden="true">❄️</span>{{ r.freezers }} {{ 'freezer' if r.freezers == 1 else 'freezers' }}</li>{% endif %}
+          {% if r.internet %}<li><span aria-hidden="true">📶</span>Internet: {{ r.internet }}</li>{% endif %}
+        </ul>
+      </section>
+      {% endif %}
+
       {% if r.checkin or r.checkout or r.rules %}
       <section class="block">
         <h2>Regras da casa</h2>

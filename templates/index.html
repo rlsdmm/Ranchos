@@ -46,7 +46,7 @@
       </label>
     </div>
     <div class="chips" role="group" aria-label="Comodidades">
-      {% for key in ['beira_rio', 'piscina', 'rampa', 'pesca', 'area_gourmet', 'ar', 'pet', 'wifi'] %}
+      {% for key in FILTER_AMENITIES %}
         {% set a = AMENITIES[key] %}
         <label class="chip"><input type="checkbox" name="c" value="{{ key }}" {% if key in wanted %}checked{% endif %}><span>{{ a[1] }} {{ a[0] }}</span></label>
       {% endfor %}

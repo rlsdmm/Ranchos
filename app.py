@@ -90,7 +90,13 @@ AMENITIES = {
     "estacionamento": ("Estacionamento", "🚗"),
     "som": ("Pode som", "🔊"),
     "roupa_cama": ("Roupa de cama inclusa", "🛏️"),
+    "beach_tennis": ("Quadra de beach tennis", "🎾"),
+    "parquinho": ("Parquinho infantil", "🎠"),
+    "futebol": ("Campo de futebol", "⚽"),
 }
+# Comodidades que viram filtro na página inicial e linha na comparação da lista
+FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
+                    "beach_tennis", "parquinho", "futebol"]
 
 # Páginas por tipo de rancho (/ranchos/<slug>), feitas para as buscas do Google.
 # "amenity" filtra pela comodidade; "min_cap" pela quantidade de pessoas.
@@ -119,6 +125,18 @@ CATEGORIES = {
         label="Com área gourmet", amenity="area_gourmet", title="Ranchos com área gourmet",
         intro="Ranchos em {city} com área gourmet para o churrasco e os almoços em grupo. "
               "Veja fotos, estrutura e o valor do fim de semana."),
+    "com-quadra-de-beach-tennis": dict(
+        label="Com beach tennis", amenity="beach_tennis", title="Ranchos com quadra de beach tennis",
+        intro="Ranchos em {city} com quadra de beach tennis, para jogar com a turma entre um mergulho e outro. "
+              "Veja fotos e o valor do fim de semana e fale direto com o dono."),
+    "com-parquinho": dict(
+        label="Com parquinho", amenity="parquinho", title="Ranchos com parquinho infantil",
+        intro="Ranchos em {city} com parquinho, para as crianças se divertirem enquanto os adultos descansam. "
+              "Confira a estrutura de cada um e combine direto com o dono pelo WhatsApp."),
+    "com-campo-de-futebol": dict(
+        label="Com campo de futebol", amenity="futebol", title="Ranchos com campo de futebol",
+        intro="Ranchos em {city} com campo de futebol para aquela pelada com os amigos. "
+              "Veja fotos, quantas pessoas cabem e o valor do fim de semana."),
     "para-grupos-grandes": dict(
         label="Para 20 pessoas ou mais", min_cap=20, title="Ranchos para grupos grandes",
         intro="Ranchos em {city} que recebem 20 pessoas ou mais, para família grande, aniversário ou a turma toda. "
@@ -147,6 +165,10 @@ class Rancho(db.Model):
     bedrooms = db.Column(db.Integer, default=0)
     bathrooms = db.Column(db.Integer, default=0)
     beds = db.Column(db.String(160), default="")            # ex.: "3 casal, 6 solteiro"
+    internet = db.Column(db.String(120), default="")        # ex.: "Fibra 150 Mbps, Wi-Fi 6"
+    fridges = db.Column(db.Integer, default=0)              # geladeiras
+    freezers = db.Column(db.Integer, default=0)
+    beer_fridges = db.Column(db.Integer, default=0)         # cervejeiras
     price_night = db.Column(db.Integer, default=0)          # R$ por diária
     price_weekend = db.Column(db.Integer, default=0)        # R$ pacote fim de semana
     price_holiday = db.Column(db.String(160), default="")   # texto livre
@@ -272,6 +294,10 @@ with app.app_context():
         ("photo", "cdn_key", "VARCHAR(120) DEFAULT ''"),
         ("rancho", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
         ("rancho", "pending", "BOOLEAN DEFAULT FALSE"),
+        ("rancho", "internet", "VARCHAR(120) DEFAULT ''"),
+        ("rancho", "fridges", "INTEGER DEFAULT 0"),
+        ("rancho", "freezers", "INTEGER DEFAULT 0"),
+        ("rancho", "beer_fridges", "INTEGER DEFAULT 0"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -491,7 +517,7 @@ def counts_since(since, rancho_id=None):
 @app.context_processor
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
-                AMENITIES=AMENITIES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
+                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year)
 
 
@@ -872,6 +898,10 @@ def fill_rancho(r, form):
     r.bedrooms = to_int(form.get("bedrooms"))
     r.bathrooms = to_int(form.get("bathrooms"))
     r.beds = form.get("beds", "").strip()[:160]
+    r.internet = form.get("internet", "").strip()[:120]
+    r.fridges = to_int(form.get("fridges"))
+    r.freezers = to_int(form.get("freezers"))
+    r.beer_fridges = to_int(form.get("beer_fridges"))
     r.price_night = to_int(form.get("price_night"))
     r.price_weekend = to_int(form.get("price_weekend"))
     r.price_holiday = form.get("price_holiday", "").strip()[:160]

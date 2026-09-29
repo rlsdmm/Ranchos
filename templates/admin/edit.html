@@ -44,6 +44,12 @@
       <label>Mín. diárias <input name="min_nights" inputmode="numeric" value="{{ r.min_nights if r else 1 }}"></label>
     </div>
     <label>Camas <input name="beds" maxlength="160" value="{{ r.beds if r else '' }}" placeholder="3 casal, 6 solteiro, 2 beliches"></label>
+    <label>Internet <span class="muted">(opcional: tipo, velocidade e Wi-Fi)</span><input name="internet" maxlength="120" value="{{ r.internet if r else '' }}" placeholder="Fibra 150 Mbps, Wi-Fi 6"></label>
+    <div class="cols-3">
+      <label>Geladeiras <input name="fridges" inputmode="numeric" value="{{ r.fridges if r and r.fridges else '' }}" placeholder="0"></label>
+      <label>Cervejeiras <input name="beer_fridges" inputmode="numeric" value="{{ r.beer_fridges if r and r.beer_fridges else '' }}" placeholder="0"></label>
+      <label>Freezers <input name="freezers" inputmode="numeric" value="{{ r.freezers if r and r.freezers else '' }}" placeholder="0"></label>
+    </div>
     <div class="amen-grid">
       {% for key, a in AMENITIES.items() %}
       <label class="check"><input type="checkbox" name="amenities" value="{{ key }}" {% if r and key in r.amenity_list %}checked{% endif %}> {{ a[1] }} {{ a[0] }}</label>

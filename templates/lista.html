@@ -35,7 +35,11 @@
         <tr><th>Banheiros</th>{% for r in ranchos %}<td>{{ r.bathrooms or '—' }}</td>{% endfor %}</tr>
         <tr><th>Camas</th>{% for r in ranchos %}<td>{{ r.beds or '—' }}</td>{% endfor %}</tr>
         <tr><th>Mínimo</th>{% for r in ranchos %}<td>{{ r.min_nights ~ ' diárias' if r.min_nights and r.min_nights > 1 else '—' }}</td>{% endfor %}</tr>
-        {% for key in ['piscina', 'beira_rio', 'rampa', 'pesca', 'area_gourmet', 'ar', 'wifi', 'pet'] %}
+        <tr><th>📶 Internet</th>{% for r in ranchos %}<td>{{ r.internet or ('Tem Wi-Fi' if 'wifi' in r.amenity_list else '—') }}</td>{% endfor %}</tr>
+        <tr><th>🧊 Geladeiras</th>{% for r in ranchos %}<td class="yesno">{{ r.fridges or '—' }}</td>{% endfor %}</tr>
+        <tr><th>🍺 Cervejeiras</th>{% for r in ranchos %}<td class="yesno">{{ r.beer_fridges or '—' }}</td>{% endfor %}</tr>
+        <tr><th>❄️ Freezers</th>{% for r in ranchos %}<td class="yesno">{{ r.freezers or '—' }}</td>{% endfor %}</tr>
+        {% for key in FILTER_AMENITIES if key != 'wifi' %}
         <tr><th>{{ AMENITIES[key][1] }} {{ AMENITIES[key][0] }}</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if key in r.amenity_list else '—' }}</td>{% endfor %}</tr>
         {% endfor %}
         <tr><th>Verificado</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if r.verified else '—' }}</td>{% endfor %}</tr>
