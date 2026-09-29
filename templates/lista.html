@@ -24,25 +24,31 @@
     <button type="button" class="btn btn-outline" data-copy-text="{{ share_url }}">Copiar link</button>
   </div>
 
-  {% if n > 1 %}<p class="muted small swipe-hint">↔ Arraste a tabela para o lado para ver todos</p>{% endif %}
+  {% if n > 1 %}
+  <p class="muted small compare-legend"><span class="best-dot"></span> Em verde, o melhor de cada item.<span class="swipe-hint"> ↔ Arraste a tabela para ver todos.</span></p>
+  {% endif %}
   <div class="table-wrap compare">
     <table class="table">
-      <thead><tr><th></th>{% for r in ranchos %}<th><a class="link" href="{{ url_for('rancho', slug=r.slug) }}">{{ r.name }}</a></th>{% endfor %}</tr></thead>
+      <thead>
+        <tr>
+          <th class="rl"></th>
+          {% for r in ranchos %}
+          <th class="rh">
+            <a href="{{ url_for('rancho', slug=r.slug) }}">
+              {% if r.cover %}<img src="{{ r.cover.url('t') }}" alt="" loading="lazy" width="240" height="160">{% endif %}
+              <span>{{ r.name }}</span>
+            </a>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
       <tbody>
-        <tr><th>Fim de semana</th>{% for r in ranchos %}<td><strong>{{ brl(r.price_weekend) if r.price_weekend else 'Consulte' }}</strong></td>{% endfor %}</tr>
-        <tr><th>Pessoas</th>{% for r in ranchos %}<td>{{ 'até ' ~ r.capacity if r.capacity else '—' }}</td>{% endfor %}</tr>
-        <tr><th>Quartos</th>{% for r in ranchos %}<td>{{ r.bedrooms or '—' }}</td>{% endfor %}</tr>
-        <tr><th>Banheiros</th>{% for r in ranchos %}<td>{{ r.bathrooms or '—' }}</td>{% endfor %}</tr>
-        <tr><th>Camas</th>{% for r in ranchos %}<td>{{ r.beds or '—' }}</td>{% endfor %}</tr>
-        <tr><th>Mínimo</th>{% for r in ranchos %}<td>{{ r.min_nights ~ ' diárias' if r.min_nights and r.min_nights > 1 else '—' }}</td>{% endfor %}</tr>
-        <tr><th>📶 Internet</th>{% for r in ranchos %}<td>{{ r.internet or ('Tem Wi-Fi' if 'wifi' in r.amenity_list else '—') }}</td>{% endfor %}</tr>
-        <tr><th>🧊 Geladeiras</th>{% for r in ranchos %}<td class="yesno">{{ r.fridges or '—' }}</td>{% endfor %}</tr>
-        <tr><th>🍺 Cervejeiras</th>{% for r in ranchos %}<td class="yesno">{{ r.beer_fridges or '—' }}</td>{% endfor %}</tr>
-        <tr><th>❄️ Freezers</th>{% for r in ranchos %}<td class="yesno">{{ r.freezers or '—' }}</td>{% endfor %}</tr>
-        {% for key in FILTER_AMENITIES if key != 'wifi' %}
-        <tr><th>{{ AMENITIES[key][1] }} {{ AMENITIES[key][0] }}</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if key in r.amenity_list else '—' }}</td>{% endfor %}</tr>
+        {% for label, cells in rows %}
+        <tr>
+          <th class="rl">{{ label }}</th>
+          {% for value, best in cells %}<td class="{{ 'best' if best }}{{ ' yesno' if value in ('✓', '—') }}">{{ value }}</td>{% endfor %}
+        </tr>
         {% endfor %}
-        <tr><th>Verificado</th>{% for r in ranchos %}<td class="yesno">{{ '✓' if r.verified else '—' }}</td>{% endfor %}</tr>
       </tbody>
     </table>
   </div>

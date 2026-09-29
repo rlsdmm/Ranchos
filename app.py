@@ -685,6 +685,46 @@ def category(slug):
                            intro=cat["intro"].format(city=CITY_NAME))
 
 
+def compare_rows(ranchos):
+    """Linhas da tabela de comparação: [(rótulo, [(texto, é_o_melhor), ...])].
+    Some com as linhas que nenhum rancho preencheu e marca o melhor valor quando os
+    números são diferentes (menor preço; maior capacidade, quartos, geladeiras...)."""
+    many = len(ranchos) > 1
+    rows = []
+
+    def numeric(label, values, fmt, best=max):
+        known = [v for v in values if v]
+        if not known:
+            return
+        top = best(known)
+        mark = many and len(set(known)) > 1
+        rows.append((label, [(fmt(v) if v else "—", mark and v == top) for v in values]))
+
+    def text(label, values):
+        if any(values):
+            rows.append((label, [(v or "—", False) for v in values]))
+
+    def yes_no(label, flags):
+        if any(flags):
+            rows.append((label, [("✓" if f else "—", False) for f in flags]))
+
+    numeric("💰 Fim de semana", [r.price_weekend for r in ranchos], brl, best=min)
+    numeric("👥 Pessoas", [r.capacity for r in ranchos], lambda v: f"até {v}")
+    numeric("🛏️ Quartos", [r.bedrooms for r in ranchos], str)
+    numeric("🚿 Banheiros", [r.bathrooms for r in ranchos], str)
+    text("🛌 Camas", [r.beds for r in ranchos])
+    text("📅 Mínimo", [f"{r.min_nights} diárias" if (r.min_nights or 1) > 1 else "" for r in ranchos])
+    text("📶 Internet", [r.internet or ("Tem Wi-Fi" if "wifi" in r.amenity_list else "") for r in ranchos])
+    numeric("🧊 Geladeiras", [r.fridges for r in ranchos], str)
+    numeric("🍺 Cervejeiras", [r.beer_fridges for r in ranchos], str)
+    numeric("❄️ Freezers", [r.freezers for r in ranchos], str)
+    for key in FILTER_AMENITIES:
+        if key != "wifi":
+            yes_no(f"{AMENITIES[key][1]} {AMENITIES[key][0]}", [key in r.amenity_list for r in ranchos])
+    yes_no("✓ Verificado", [r.verified for r in ranchos])
+    return rows
+
+
 @app.route("/lista")
 def group_list():
     """Lista de ranchos para mandar ao grupo. Os ranchos vão no próprio endereço
@@ -695,7 +735,7 @@ def group_list():
     share_url = f"{site_url()}/lista?r={','.join(r.slug for r in ranchos)}" if ranchos else ""
     share_text = (f"Separei {'esses ranchos' if len(ranchos) > 1 else 'esse rancho'} em {CITY_NAME} "
                   f"pra gente escolher: {share_url}")
-    return render_template("lista.html", ranchos=ranchos, share_url=share_url,
+    return render_template("lista.html", ranchos=ranchos, share_url=share_url, rows=compare_rows(ranchos),
                            wa_link=f"https://wa.me/?text={quote(share_text)}" if ranchos else "")
 
 

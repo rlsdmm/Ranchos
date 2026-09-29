@@ -169,13 +169,39 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* lista para o grupo: tabela lado a lado */
 .list-page h1 { font-size: clamp(28px, 4vw, 42px); font-weight: 850; font-stretch: 110%; }
 .share-btns { margin: 16px 0 22px; }
-.compare { margin-bottom: 30px; }
-.compare .table th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; white-space: nowrap; color: var(--muted); font-weight: 700; }
-.compare .table thead th { font-size: 15px; color: var(--ink); min-width: 150px; }
+.compare { margin-bottom: 30px; scroll-snap-type: x proximity; scroll-padding-left: 150px; }
+.compare .table { table-layout: fixed; width: max-content; min-width: 100%; }
+/* coluna dos itens fica parada enquanto os ranchos deslizam */
+.compare .rl {
+  position: sticky; left: 0; z-index: 2; background: var(--card); width: 150px; min-width: 150px;
+  color: var(--muted); font-weight: 700; white-space: normal; line-height: 1.3;
+  box-shadow: 6px 0 8px -6px rgba(16, 32, 30, .25);
+}
+.compare .rh { width: 170px; min-width: 170px; vertical-align: top; scroll-snap-align: start; }
+.compare .rh a { display: block; text-decoration: none; color: var(--ink); }
+.compare .rh img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 10px; margin-bottom: 6px; background: var(--rio-soft); }
+.compare .rh span {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 15px; font-weight: 800; line-height: 1.25; color: var(--rio-2);
+}
+.compare td { vertical-align: middle; }
 .compare .yesno { text-align: center; font-weight: 700; }
+.compare td.best { background: #e3f3ec; color: var(--rio); font-weight: 800; }
+.compare-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.best-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #cdeadd; box-shadow: inset 0 0 0 1px #9fd3bd; }
+.swipe-hint { display: none; }
 .list-hint { margin-top: 18px; }
-.swipe-hint { display: none; margin: 0 0 8px; }
-@media (max-width: 640px) { .swipe-hint { display: block; } }
+@media (max-width: 640px) {
+  .swipe-hint { display: inline; }
+  /* no celular: coluna dos itens estreita, ~2,5 ranchos por tela */
+  .compare { scroll-padding-left: 88px; margin-inline: -4px; }
+  .compare .table { font-size: 13px; }
+  .compare .table th, .compare .table td { padding: 8px 8px; }
+  .compare .rl { width: 88px; min-width: 88px; font-size: 12px; }
+  .compare .rh { width: 116px; min-width: 116px; }
+  .compare .rh span { font-size: 13px; }
+  .compare .rh img { border-radius: 8px; margin-bottom: 4px; }
+}
 .badges { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
 .badge {
   display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
