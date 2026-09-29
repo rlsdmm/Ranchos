@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ o.name or o.login }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>{{ o.name or o.login }}</h1>
+  <div class="actions"><a href="{{ url_for('admin_owners') }}">← Todas as contas</a></div>
+</div>
+<p class="muted small">
+  Criada em {{ o.created_at|local }} ·
+  {{ 'último acesso em ' ~ (o.last_login|local) if o.last_login else 'nunca entrou' }}
+  {% if o.must_change %} · ainda com senha provisória{% endif %}
+</p>
+
+<form method="post" class="form form-card">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="cols-2">
+    <label>Nome do dono <input name="name" maxlength="120" value="{{ o.name }}"></label>
+    <label>Login <input name="login" required maxlength="120" autocapitalize="none" spellcheck="false" value="{{ o.login }}"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="active" {% if o.active %}checked{% endif %}> Conta ativa <span class="muted">(desmarque para bloquear o acesso sem apagar)</span></label>
+  {% if ranchos %}
+  <p class="strong small">Ranchos que ele pode editar</p>
+  <div class="amen-grid">
+    {% for r in ranchos %}
+    <label class="check"><input type="checkbox" name="ranchos" value="{{ r.id }}" {% if r.owner_id == o.id %}checked{% endif %}> {{ r.name }}{% if r.owner and r.owner_id != o.id %} <span class="muted">(hoje: {{ r.owner.login }})</span>{% endif %}{% if r.pending %} <span class="muted">(aguardando aprovação)</span>{% endif %}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <button class="btn btn-dark">Salvar conta</button>
+</form>
+
+<h2>Esqueceu a senha?</h2>
+<p class="muted">Gera uma senha provisória nova. A antiga para de funcionar na hora, e o dono troca no próximo acesso.</p>
+<form method="post" action="{{ url_for('admin_owner_reset', oid=o.id) }}" data-confirm="Gerar uma senha provisória nova para {{ o.login }}?">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <button class="btn btn-outline">Gerar senha provisória nova</button>
+</form>
+
+<form method="post" action="{{ url_for('admin_owner_delete', oid=o.id) }}" class="danger-zone" data-confirm="Excluir a conta {{ o.login }}? Os ranchos dela continuam no site, só ficam sem dono.">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <button class="btn btn-outline danger">Excluir conta</button>
+</form>
+{% endblock %}

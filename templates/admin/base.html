@@ -13,11 +13,13 @@
 <body class="admin">
   <header class="topbar">
     <div class="wrap topbar-in">
-      <a class="brand" href="{{ url_for('admin_home') }}">Painel</a>
-      {% if is_admin() %}
+      <a class="brand" href="{{ url_for('admin_home') }}">{{ 'Meus ranchos' if current_owner() else 'Painel' }}</a>
+      {% if is_admin() or current_owner() %}
       <nav class="topnav">
         <a href="{{ url_for('index') }}" target="_blank">Ver site ↗</a>
-        <a class="topnav-cta" href="{{ url_for('admin_edit') }}">+ Novo rancho</a>
+        {% if is_admin() %}<a href="{{ url_for('admin_owners') }}">Donos</a>
+        {% elif not current_owner().must_change %}<a href="{{ url_for('owner_password') }}">Trocar senha</a>{% endif %}
+        {% if is_admin() or not current_owner().must_change %}<a class="topnav-cta" href="{{ url_for('admin_edit') }}">+ Novo rancho</a>{% endif %}
         <form method="post" action="{{ url_for('admin_logout') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="linkbtn">Sair</button></form>
       </nav>
       {% endif %}

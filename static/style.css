@@ -290,6 +290,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .form-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 26px; }
 .form-card h2, .form-card h1 { font-size: 26px; font-weight: 800; margin-bottom: 16px; }
 .form-card.narrow { max-width: 420px; margin: 48px auto; }
+.form-card.form { display: grid; gap: 14px; margin-bottom: 24px; }
+/* ranchos cadastrados pelos donos, esperando aprovação */
+.pending-box { background: #fff4dc; border: 1.5px solid var(--sol); border-radius: var(--r); padding: 16px 18px; margin: 0 0 22px; display: grid; gap: 10px; }
+.pending-box h2 { margin: 0; font-size: 20px; }
+.pending-box p { margin: 0; }
+.pending-box form { margin: 0; }
 .form { display: grid; gap: 14px; }
 .form label { display: grid; gap: 6px; font-weight: 650; font-size: 15px; }
 .form label .muted { font-weight: 400; }

@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+{% block title %}Meus ranchos{% endblock %}
+{% block content %}
+<h1>Olá{% if owner.name %}, {{ owner.name.split()[0] }}{% endif %}!</h1>
+<p class="muted">Aqui você atualiza os seus anúncios: fotos, descrição, preços e regras. As mudanças aparecem no site na hora.</p>
+
+<h2>Meus ranchos</h2>
+{% if ranchos %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visitas (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th></th></tr></thead>
+  <tbody>
+  {% for r in ranchos %}
+    <tr class="{% if not r.public %}off{% endif %}">
+      <td>
+        <a href="{{ url_for('admin_edit', rid=r.id) }}" class="strong">{{ r.name }}</a>
+        <div class="muted small">{{ r.photos|length }} fotos{% if r.verified %} · ✓ Verificado{% endif %}</div>
+      </td>
+      <td>
+        {% if r.pending %}<span class="badge">Aguardando aprovação</span>
+        {% elif not r.active %}<span class="badge">Pausado</span>
+        {% else %}<span class="badge badge-ok">No ar</span>{% endif %}
+      </td>
+      <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
+      <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
+      <td><div class="actions">
+        <a href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a>
+        <a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>
+        <a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver ↗</a>
+      </div></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <div class="empty">
+    <p>Você ainda não tem ranchos na sua conta.</p>
+    <a class="btn btn-dark" href="{{ url_for('admin_edit') }}">Cadastrar meu rancho</a>
+  </div>
+{% endif %}
+<p class="muted small">Rancho novo aparece no site depois que a nossa equipe aprovar. O selo "Verificado" é dado quando visitamos o rancho e confirmamos o contato.</p>
+{% endblock %}

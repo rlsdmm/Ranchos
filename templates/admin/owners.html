@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}Donos{% endblock %}
+{% block content %}
+<h1>Contas de donos</h1>
+<p class="muted">Cada dono entra em <strong>{{ site_url() }}/admin</strong> com o login e a senha. Ele só vê e edita os ranchos ligados à conta dele; rancho novo que ele cadastrar fica aguardando a sua aprovação.</p>
+
+{% if owners %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Conta</th><th>Ranchos</th><th>Último acesso</th><th></th></tr></thead>
+  <tbody>
+  {% for o in owners %}
+    <tr class="{% if not o.active %}off{% endif %}">
+      <td>
+        <a href="{{ url_for('admin_owner', oid=o.id) }}" class="strong">{{ o.name or o.login }}</a>
+        <div class="muted small">{{ o.login }}{% if not o.active %} · desativada{% elif o.must_change %} · ainda não trocou a senha provisória{% endif %}</div>
+      </td>
+      <td>{% for r in o.ranchos %}{{ r.name }}{% if r.pending %} (aguardando){% endif %}{% if not loop.last %}, {% endif %}{% else %}<span class="muted">nenhum</span>{% endfor %}</td>
+      <td class="small">{{ o.last_login|local if o.last_login else 'nunca entrou' }}</td>
+      <td><div class="actions"><a href="{{ url_for('admin_owner', oid=o.id) }}">Editar</a></div></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="muted">Nenhuma conta ainda.</p>
+{% endif %}
+
+<h2>Criar conta</h2>
+<form method="post" class="form form-card">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="cols-2">
+    <label>Nome do dono <input name="name" maxlength="120" value="{{ form.get('name', '') }}" placeholder="Mariana Souza"></label>
+    <label>Login (e-mail ou usuário que ele escolheu) <input name="login" required maxlength="120" autocapitalize="none" spellcheck="false" value="{{ form.get('login', '') }}" placeholder="mariana@gmail.com"></label>
+  </div>
+  <label>Senha provisória <span class="muted">(pode trocar pela que quiser, mínimo 8 caracteres)</span>
+    <input name="password" minlength="8" maxlength="120" value="{{ suggestion }}" autocomplete="off" spellcheck="false">
+  </label>
+  {% if ranchos %}
+  <p class="strong small">Ranchos que ele pode editar</p>
+  <div class="amen-grid">
+    {% for r in ranchos %}
+    <label class="check"><input type="checkbox" name="ranchos" value="{{ r.id }}"> {{ r.name }}{% if r.owner %} <span class="muted">(hoje: {{ r.owner.login }})</span>{% endif %}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <button class="btn btn-dark">Criar conta</button>
+  <p class="muted small">A senha aparece uma vez depois de criar. No primeiro acesso o dono é obrigado a trocar por uma só dele.</p>
+</form>
+{% endblock %}

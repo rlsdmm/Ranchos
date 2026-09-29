@@ -5,8 +5,10 @@
   <h1>Entrar no painel</h1>
   <form method="post" class="form">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-    <label>Senha <input type="password" name="password" required autofocus autocomplete="current-password"></label>
+    <label>E-mail ou usuário <input name="login" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus></label>
+    <label>Senha <input type="password" name="password" required autocomplete="current-password"></label>
     <button class="btn btn-dark btn-block">Entrar</button>
   </form>
+  <p class="muted small">Esqueceu a senha? Fale com a gente pelo WhatsApp que enviamos uma senha provisória nova.</p>
 </div>
 {% endblock %}

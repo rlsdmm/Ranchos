@@ -25,10 +25,12 @@
 </div>
 <p class="legend small"><i class="lg views"></i> visitas <i class="lg zap"></i> cliques no WhatsApp</p>
 
+{% if is_admin() %}
 <h2>Mensagem para o dono</h2>
 <textarea class="report-text" rows="7" readonly id="report-text">{{ text }}</textarea>
 <div class="row-btns">
   <button class="btn btn-outline" data-copy="#report-text">Copiar</button>
   {% if wa_link %}<a class="btn btn-zap" href="{{ wa_link }}" target="_blank" rel="noopener">Enviar no WhatsApp de {{ r.owner_name.split()[0] if r.owner_name else 'dono' }}</a>{% endif %}
 </div>
+{% endif %}
 {% endblock %}

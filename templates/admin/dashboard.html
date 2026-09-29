@@ -1,6 +1,32 @@
 {% extends "admin/base.html" %}
 {% block title %}Painel{% endblock %}
 {% block content %}
+{% set pendentes = ranchos|selectattr('pending')|list %}
+{% if pendentes %}
+<section class="pending-box">
+  <h2>Aguardando aprovação ({{ pendentes|length }})</h2>
+  <p class="muted small">Ranchos cadastrados pelos donos. Só aparecem no site depois que você aprovar.</p>
+  <ul class="leads">
+    {% for r in pendentes %}
+    <li class="lead">
+      <div>
+        <p class="strong">{{ r.name }}</p>
+        <p class="muted small">{{ r.photos|length }} fotos · conta {{ r.owner.login if r.owner else 'sem dono' }} · cadastrado em {{ r.created_at|local }}</p>
+      </div>
+      <div class="lead-actions">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver prévia ↗</a>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('admin_edit', rid=r.id) }}">Revisar</a>
+        <form method="post" action="{{ url_for('admin_approve', rid=r.id) }}" data-confirm="Publicar {{ r.name }} no site?">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="btn btn-dark btn-sm">Aprovar e publicar</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <h1>Últimos 30 dias</h1>
 <div class="kpis">
   <div class="kpi"><strong>{{ totals.views }}</strong><span>visitas nos anúncios</span></div>
@@ -15,11 +41,11 @@
 <table class="table">
   <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th>No site</th><th>Destaque</th><th>Verificado</th><th></th></tr></thead>
   <tbody>
-  {% for r in ranchos %}
+  {% for r in ranchos if not r.pending %}
     <tr class="{% if not r.active %}off{% endif %}">
       <td>
         <a href="{{ url_for('admin_edit', rid=r.id) }}" class="strong">{{ r.name }}</a>
-        <div class="muted small">{{ r.photos|length }} fotos{% if r.region %}, {{ r.region }}{% endif %}</div>
+        <div class="muted small">{{ r.photos|length }} fotos{% if r.region %}, {{ r.region }}{% endif %}{% if r.owner %} · conta <a class="link" href="{{ url_for('admin_owner', oid=r.owner.id) }}">{{ r.owner.login }}</a>{% endif %}</div>
       </td>
       <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
       <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>

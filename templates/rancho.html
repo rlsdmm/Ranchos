@@ -21,10 +21,11 @@
       <h1>{{ r.name }}</h1>
       <p class="muted">{% if r.region %}{{ r.region }}, {% endif %}{{ CITY_NAME }}</p>
     </div>
-    {% if r.verified or not r.active %}
+    {% if r.verified or not r.public %}
     <div class="badges-inline">
       {% if r.verified %}<span class="badge badge-ok">✓ Verificado</span>{% endif %}
-      {% if not r.active %}<span class="badge">Oculto no site</span>{% endif %}
+      {% if r.pending %}<span class="badge">Aguardando aprovação</span>
+      {% elif not r.active %}<span class="badge">Oculto no site</span>{% endif %}
     </div>
     {% endif %}
   </header>

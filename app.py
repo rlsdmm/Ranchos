@@ -5,6 +5,9 @@ Público:  lista com filtros, página de cada rancho, botão de WhatsApp com con
           de cliques, página "Anuncie seu rancho", sitemap/robots para o Google.
 Admin:    /admin — cadastro de ranchos, fotos, destaque/verificado, pedidos de
           anúncio e relatório mensal por rancho (pronto para mandar ao dono).
+Donos:    contas criadas pelo admin em /admin/donos. O dono entra no mesmo /admin/login
+          (login + senha) e só vê e edita os próprios ranchos; rancho novo dele fica
+          pendente até o admin aprovar. Verificado/destaque continuam só com o admin.
 
 Banco:    DATABASE_URL (Postgres em produção). Sem ela, usa SQLite local.
 Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunny
@@ -32,6 +35,7 @@ from PIL import Image, ImageOps
 from sqlalchemy import exc, func
 from sqlalchemy.orm import deferred
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # ---------------------------------------------------------------------------
 # Config
@@ -123,11 +127,19 @@ class Rancho(db.Model):
     verified = db.Column(db.Boolean, default=False)
     featured = db.Column(db.Boolean, default=False)
     active = db.Column(db.Boolean, default=True)
+    # Conta de dono que pode editar o rancho. Rancho cadastrado pelo dono fica pendente
+    # (fora do site) até o administrador aprovar.
+    owner_id = db.Column(db.Integer, db.ForeignKey("owner.id", ondelete="SET NULL"), index=True)
+    pending = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     photos = db.relationship("Photo", backref="rancho", cascade="all, delete-orphan",
                              order_by="Photo.position")
+
+    @property
+    def public(self):
+        return bool(self.active and not self.pending)
 
     @property
     def amenity_list(self):
@@ -143,6 +155,27 @@ class Rancho(db.Model):
         if d and not d.startswith("55"):
             d = "55" + d
         return d
+
+
+class Owner(db.Model):
+    """Conta de dono de rancho. O administrador cria com uma senha provisória, que o dono
+    é obrigado a trocar no primeiro acesso."""
+    id = db.Column(db.Integer, primary_key=True)
+    login = db.Column(db.String(120), unique=True, nullable=False, index=True)  # e-mail ou usuário, minúsculo
+    name = db.Column(db.String(120), default="")
+    password_hash = db.Column(db.String(255), nullable=False)
+    must_change = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    last_login = db.Column(db.DateTime)
+
+    ranchos = db.relationship("Rancho", backref="owner", order_by="Rancho.name")
+
+    def set_password(self, pw):
+        self.password_hash = generate_password_hash(pw)
+
+    def check_password(self, pw):
+        return check_password_hash(self.password_hash, pw)
 
 
 class Photo(db.Model):
@@ -192,12 +225,17 @@ with app.app_context():
         time.sleep(1)
         db.create_all()
     # create_all não acrescenta coluna em tabela que já existe.
-    if "cdn_key" not in {c["name"] for c in db.inspect(db.engine).get_columns("photo")}:
-        try:
-            with db.engine.begin() as conn:
-                conn.execute(db.text("ALTER TABLE photo ADD COLUMN cdn_key VARCHAR(120) DEFAULT ''"))
-        except exc.DatabaseError:  # outro worker acrescentou ao mesmo tempo
-            pass
+    for table, column, ddl in [
+        ("photo", "cdn_key", "VARCHAR(120) DEFAULT ''"),
+        ("rancho", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
+        ("rancho", "pending", "BOOLEAN DEFAULT FALSE"),
+    ]:
+        if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(db.text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+            except exc.DatabaseError:  # outro worker acrescentou ao mesmo tempo
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -307,10 +345,22 @@ def is_admin():
     return bool(session.get("admin"))
 
 
+def current_owner():
+    """Dono logado (ou None). Conta desativada ou apagada derruba a sessão na hora."""
+    if "owner" not in g:
+        oid = session.get("owner_id")
+        o = db.session.get(Owner, oid) if oid else None
+        g.owner = o if o and o.active else None
+    return g.owner
+
+
 def admin_required(f):
+    """Só o administrador."""
     @wraps(f)
     def wrapper(*a, **kw):
         if not is_admin():
+            if current_owner():
+                abort(403)
             return redirect(url_for("admin_login", next=request.path))
         if request.method == "POST":
             check_csrf()
@@ -318,8 +368,36 @@ def admin_required(f):
     return wrapper
 
 
+def panel_required(f):
+    """Administrador ou dono. O dono com senha provisória só entra depois de trocá-la."""
+    @wraps(f)
+    def wrapper(*a, **kw):
+        owner = current_owner()
+        if not is_admin() and not owner:
+            return redirect(url_for("admin_login", next=request.path))
+        if owner and owner.must_change and request.endpoint not in ("owner_password", "admin_logout"):
+            return redirect(url_for("owner_password"))
+        if request.method == "POST":
+            check_csrf()
+        return f(*a, **kw)
+    return wrapper
+
+
+def editable_rancho(rid):
+    """Rancho que quem está logado pode mexer. Para o dono, rancho de outra conta é 404
+    (nem confirma que existe)."""
+    r = db.session.get(Rancho, rid)
+    if not r or not (is_admin() or (current_owner() and r.owner_id == current_owner().id)):
+        abort(404)
+    return r
+
+
+def public_ranchos():
+    return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
+
+
 def log_event(rancho_id, kind):
-    if is_admin() or BOT_RE.search(request.headers.get("User-Agent", "")):
+    if is_admin() or current_owner() or BOT_RE.search(request.headers.get("User-Agent", "")):
         return
     db.session.add(Event(rancho_id=rancho_id, kind=kind))
     db.session.commit()
@@ -350,7 +428,7 @@ def counts_since(since, rancho_id=None):
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
                 AMENITIES=AMENITIES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
-                site_url=site_url, year=datetime.now().year)
+                current_owner=current_owner, site_url=site_url, year=datetime.now().year)
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc
@@ -394,7 +472,7 @@ def index():
     wanted = [a for a in request.args.getlist("c") if a in AMENITIES]
     order = request.args.get("ordem", "destaque")
 
-    ranchos = Rancho.query.filter_by(active=True).all()
+    ranchos = public_ranchos().all()
     total = len(ranchos)
     if cap:
         ranchos = [r for r in ranchos if (r.capacity or 0) >= cap]
@@ -420,7 +498,8 @@ def index():
 @app.route("/rancho/<slug>")
 def rancho(slug):
     r = Rancho.query.filter_by(slug=slug).first_or_404()
-    if not r.active and not is_admin():
+    own = current_owner() and r.owner_id == current_owner().id
+    if not r.public and not (is_admin() or own):  # admin e o dono podem pré-visualizar
         abort(404)
     seen = session.get("seen", {})
     today = datetime.now().strftime("%Y-%m-%d")
@@ -428,7 +507,7 @@ def rancho(slug):
         log_event(r.id, "view")
         seen[str(r.id)] = today
         session["seen"] = dict(list(seen.items())[-50:])
-    others = (Rancho.query.filter(Rancho.active.is_(True), Rancho.id != r.id)
+    others = (public_ranchos().filter(Rancho.id != r.id)
               .order_by(Rancho.featured.desc(), Rancho.updated_at.desc()).limit(3).all())
     base = site_url()
     ld = {
@@ -448,7 +527,7 @@ def rancho(slug):
 
 @app.route("/rancho/<slug>/whatsapp")
 def rancho_whatsapp(slug):
-    r = Rancho.query.filter_by(slug=slug, active=True).first_or_404()
+    r = public_ranchos().filter_by(slug=slug).first_or_404()
     if not r.whatsapp_digits:
         abort(404)
     log_event(r.id, "whatsapp")
@@ -517,7 +596,7 @@ def robots():
 def sitemap():
     base = site_url()
     urls = [(f"{base}/", None), (f"{base}/anuncie", None)]
-    for r in Rancho.query.filter_by(active=True).all():
+    for r in public_ranchos().all():
         urls.append((f"{base}/rancho/{r.slug}", r.updated_at))
     items = "".join(
         f"<url><loc>{u}</loc>{f'<lastmod>{d:%Y-%m-%d}</lastmod>' if d else ''}</url>" for u, d in urls)
@@ -533,35 +612,96 @@ def not_found(e):
 # ---------------------------------------------------------------------------
 # Admin
 # ---------------------------------------------------------------------------
+LOGIN_RE = re.compile(r"^[a-z0-9@._+-]{3,120}$")
+MIN_PASSWORD = 8
+# Hash de uma senha qualquer: login inexistente gasta o mesmo tempo que senha errada,
+# para não dar para descobrir quais logins existem.
+_DUMMY_HASH = generate_password_hash(secrets.token_hex(8))
+
+
+def normalize_login(v):
+    return (v or "").strip().lower()
+
+
+def temp_password():
+    """Senha provisória fácil de ditar por telefone (sem 0/O, 1/l)."""
+    alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(10))
+
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
-    if not ADMIN_PASSWORD:
-        return "Defina a variável de ambiente ADMIN_PASSWORD para usar o painel.", 503
     if request.method == "POST":
         check_csrf()
         time.sleep(0.6)  # freia tentativas de adivinhar a senha
-        if hmac.compare_digest(request.form.get("password", ""), ADMIN_PASSWORD):
-            session.clear()
-            session.permanent = True
-            session["admin"] = True
-            nxt = request.args.get("next", "")
-            return redirect(nxt if nxt.startswith("/admin") else url_for("admin_home"))
-        flash("Senha incorreta.", "error")
+        login = normalize_login(request.form.get("login"))
+        password = request.form.get("password", "")
+        nxt = request.args.get("next", "")
+        nxt = nxt if nxt.startswith("/admin") else url_for("admin_home")
+        if not login:  # administrador: só a senha, como sempre foi
+            if ADMIN_PASSWORD and hmac.compare_digest(password, ADMIN_PASSWORD):
+                session.clear()
+                session.permanent = True
+                session["admin"] = True
+                return redirect(nxt)
+        else:
+            o = Owner.query.filter_by(login=login).first()
+            if o and o.active and o.check_password(password):
+                session.clear()
+                session.permanent = True
+                session["owner_id"] = o.id
+                o.last_login = now_utc()
+                db.session.commit()
+                return redirect(url_for("owner_password") if o.must_change else nxt)
+            if not o:
+                check_password_hash(_DUMMY_HASH, password)
+        flash("Login ou senha incorretos." if login else "Senha incorreta.", "error")
     return render_template("admin/login.html")
 
 
 @app.route("/admin/logout", methods=["POST"])
-@admin_required
+@panel_required
 def admin_logout():
     session.clear()
     return redirect(url_for("index"))
 
 
+@app.route("/admin/senha", methods=["GET", "POST"])
+@panel_required
+def owner_password():
+    """Dono troca a senha (obrigatório no primeiro acesso)."""
+    o = current_owner()
+    if not o:  # a senha do administrador fica na variável ADMIN_PASSWORD
+        abort(404)
+    if request.method == "POST":
+        new, confirm = request.form.get("new", ""), request.form.get("confirm", "")
+        if not o.check_password(request.form.get("current", "")):
+            flash("A senha atual não confere.", "error")
+        elif len(new) < MIN_PASSWORD:
+            flash(f"A senha nova precisa ter pelo menos {MIN_PASSWORD} caracteres.", "error")
+        elif new != confirm:
+            flash("As duas senhas novas não são iguais.", "error")
+        elif o.check_password(new):
+            flash("A senha nova precisa ser diferente da atual.", "error")
+        else:
+            o.set_password(new)
+            o.must_change = False
+            db.session.commit()
+            flash("Senha trocada. Pronto, pode usar o painel.", "ok")
+            return redirect(url_for("admin_home"))
+    return render_template("admin/password.html", owner=o)
+
+
 @app.route("/admin")
-@admin_required
+@panel_required
 def admin_home():
-    ranchos = Rancho.query.order_by(Rancho.featured.desc(), Rancho.name).all()
     since = now_utc() - timedelta(days=30)
+    o = current_owner()
+    if o:
+        ranchos = Rancho.query.filter_by(owner_id=o.id).order_by(Rancho.name).all()
+        c30 = counts_since(since)
+        return render_template("admin/owner_home.html", ranchos=ranchos, c30=c30, owner=o)
+    ranchos = Rancho.query.order_by(Rancho.pending.desc(), Rancho.featured.desc(), Rancho.name).all()
     c30 = counts_since(since)
     leads = Lead.query.order_by(Lead.handled, Lead.created_at.desc()).limit(50).all()
     totals = {
@@ -592,10 +732,19 @@ def fill_rancho(r, form):
     maps = form.get("maps_url", "").strip()[:500]
     r.maps_url = maps if maps.startswith("https://") else ""
     r.owner_name = form.get("owner_name", "").strip()[:120]
+    old_digits = r.whatsapp_digits
     r.owner_whatsapp = form.get("owner_whatsapp", "").strip()[:30]
-    r.verified = bool(form.get("verified"))
-    r.featured = bool(form.get("featured"))
     r.active = bool(form.get("active"))
+    if is_admin():
+        r.verified = bool(form.get("verified"))
+        r.featured = bool(form.get("featured"))
+        oid = to_int(form.get("owner_id"))
+        r.owner_id = oid if oid and db.session.get(Owner, oid) else None
+    elif r.verified and old_digits and r.whatsapp_digits != old_digits:
+        # Conta invadida poderia trocar o número por um de golpista: o selo sai até o admin conferir.
+        r.verified = False
+        return True
+    return False
 
 
 def save_uploads(r, files):
@@ -625,17 +774,18 @@ def save_uploads(r, files):
 
 @app.route("/admin/rancho/novo", methods=["GET", "POST"])
 @app.route("/admin/rancho/<int:rid>", methods=["GET", "POST"])
-@admin_required
+@panel_required
 def admin_edit(rid=None):
-    r = db.session.get(Rancho, rid) if rid else None
-    if rid and not r:
-        abort(404)
+    r = editable_rancho(rid) if rid else None
+    owner = current_owner()
     if request.method == "POST":
         is_new = r is None
         if is_new:
             r = Rancho(slug="tmp-" + secrets.token_hex(4))
+            if owner:  # rancho cadastrado pelo dono só vai ao ar depois da aprovação
+                r.owner_id, r.pending = owner.id, True
             db.session.add(r)
-        fill_rancho(r, request.form)
+        lost_seal = fill_rancho(r, request.form)
         if is_new or request.form.get("regen_slug"):
             db.session.flush()
             r.slug = unique_slug(r.name, exclude_id=r.id)
@@ -646,15 +796,33 @@ def admin_edit(rid=None):
             msg += f" {added} foto(s) adicionada(s)."
         if skipped:
             msg += f" {skipped} arquivo(s) ignorado(s) por não serem imagens."
+        if is_new and r.pending:
+            msg += " Ele vai aparecer no site assim que for aprovado."
         flash(msg, "ok")
+        if lost_seal:
+            flash("Como o WhatsApp mudou, o selo \"Verificado\" saiu até a gente conferir o número novo.", "error")
         return redirect(url_for("admin_edit", rid=r.id))
-    return render_template("admin/edit.html", r=r)
+    owners = Owner.query.order_by(Owner.name, Owner.login).all() if is_admin() else []
+    return render_template("admin/edit.html", r=r, owners=owners)
+
+
+@app.route("/admin/rancho/<int:rid>/aprovar", methods=["POST"])
+@admin_required
+def admin_approve(rid):
+    r = db.session.get(Rancho, rid) or abort(404)
+    r.pending = False
+    r.active = True
+    db.session.commit()
+    flash(f"{r.name} aprovado e publicado no site.", "ok")
+    if request.form.get("back") == "edit":
+        return redirect(url_for("admin_edit", rid=r.id))
+    return redirect(url_for("admin_home"))
 
 
 @app.route("/admin/rancho/<int:rid>/foto/<int:pid>/<action>", methods=["POST"])
-@admin_required
+@panel_required
 def admin_photo(rid, pid, action):
-    r = db.session.get(Rancho, rid) or abort(404)
+    r = editable_rancho(rid)
     photos = list(r.photos)
     p = next((x for x in photos if x.id == pid), None) or abort(404)
     gone = []
@@ -677,10 +845,10 @@ def admin_photo(rid, pid, action):
 
 
 @app.route("/admin/rancho/<int:rid>/fotos", methods=["POST"])
-@admin_required
+@panel_required
 def admin_photos_upload(rid):
     """Recebe um lote de fotos (o navegador divide envios grandes em vários lotes)."""
-    r = db.session.get(Rancho, rid) or abort(404)
+    r = editable_rancho(rid)
     added, skipped = save_uploads(r, request.files.getlist("photos"))
     db.session.commit()
     if request.form.get("final"):  # último lote: um resumo só, em vez de uma mensagem por lote
@@ -694,10 +862,10 @@ def admin_photos_upload(rid):
 
 
 @app.route("/admin/rancho/<int:rid>/fotos/ordem", methods=["POST"])
-@admin_required
+@panel_required
 def admin_photo_order(rid):
     """Recebe a ordem nova do arrastar-e-soltar: ids separados por vírgula."""
-    r = db.session.get(Rancho, rid) or abort(404)
+    r = editable_rancho(rid)
     by_id = {p.id: p for p in r.photos}
     try:
         ids = [int(x) for x in request.form.get("ordem", "").split(",") if x]
@@ -712,9 +880,9 @@ def admin_photo_order(rid):
 
 
 @app.route("/admin/rancho/<int:rid>/fotos/excluir-todas", methods=["POST"])
-@admin_required
+@panel_required
 def admin_photos_delete_all(rid):
-    r = db.session.get(Rancho, rid) or abort(404)
+    r = editable_rancho(rid)
     n = len(r.photos)
     gone = [p.cdn_key for p in r.photos]
     r.photos.clear()
@@ -749,9 +917,9 @@ def admin_toggle(rid, field):
 
 
 @app.route("/admin/rancho/<int:rid>/relatorio")
-@admin_required
+@panel_required
 def admin_report(rid):
-    r = db.session.get(Rancho, rid) or abort(404)
+    r = editable_rancho(rid)
     start = add_months(month_start(now_utc()), -5)
     rows = (db.session.query(Event.kind, Event.created_at)
             .filter(Event.rancho_id == r.id, Event.created_at >= start).all())
@@ -778,6 +946,97 @@ def admin_report(rid):
     wa_link = f"https://wa.me/{r.whatsapp_digits}?text={quote(text)}" if r.whatsapp_digits else ""
     peak = max([m["views"] for m in months] + [1])
     return render_template("admin/report.html", r=r, months=months, text=text, wa_link=wa_link, peak=peak)
+
+
+def _owner_form_errors(login, exclude_id=None):
+    if not LOGIN_RE.match(login):
+        return "Login inválido: use de 3 a 120 caracteres, só letras, números e @ . _ + -"
+    q = Owner.query.filter_by(login=login)
+    if exclude_id:
+        q = q.filter(Owner.id != exclude_id)
+    if q.first():
+        return f"Já existe uma conta com o login {login}."
+    return None
+
+
+def _assign_ranchos(o, ids):
+    """Liga os ranchos marcados a esta conta (tirando de quem estivesse antes) e solta os desmarcados."""
+    wanted = {i for i in ids if i}
+    for r in Rancho.query.filter((Rancho.owner_id == o.id) | (Rancho.id.in_(wanted or [0]))).all():
+        r.owner_id = o.id if r.id in wanted else None
+
+
+@app.route("/admin/donos", methods=["GET", "POST"])
+@admin_required
+def admin_owners():
+    if request.method == "POST":
+        login = normalize_login(request.form.get("login"))
+        password = request.form.get("password", "").strip() or temp_password()
+        err = _owner_form_errors(login)
+        if not err and len(password) < MIN_PASSWORD:
+            err = f"A senha provisória precisa ter pelo menos {MIN_PASSWORD} caracteres."
+        if err:
+            flash(err, "error")
+        else:
+            o = Owner(login=login, name=request.form.get("name", "").strip()[:120], must_change=True)
+            o.set_password(password)
+            db.session.add(o)
+            db.session.flush()
+            _assign_ranchos(o, [to_int(x) for x in request.form.getlist("ranchos")])
+            db.session.commit()
+            flash(f"Conta criada. Login: {login} · Senha provisória: {password} · Anote e passe para o dono: "
+                  "ela não aparece de novo, e ele vai trocar no primeiro acesso.", "ok")
+            return redirect(url_for("admin_owners"))
+    owners = Owner.query.order_by(Owner.active.desc(), Owner.name, Owner.login).all()
+    ranchos = Rancho.query.order_by(Rancho.name).all()
+    return render_template("admin/owners.html", owners=owners, ranchos=ranchos,
+                           suggestion=temp_password(), form=request.form)
+
+
+@app.route("/admin/donos/<int:oid>", methods=["GET", "POST"])
+@admin_required
+def admin_owner(oid):
+    o = db.session.get(Owner, oid) or abort(404)
+    if request.method == "POST":
+        login = normalize_login(request.form.get("login"))
+        err = _owner_form_errors(login, exclude_id=o.id)
+        if err:
+            flash(err, "error")
+        else:
+            o.login = login
+            o.name = request.form.get("name", "").strip()[:120]
+            o.active = bool(request.form.get("active"))
+            _assign_ranchos(o, [to_int(x) for x in request.form.getlist("ranchos")])
+            db.session.commit()
+            flash("Conta salva.", "ok")
+            return redirect(url_for("admin_owner", oid=o.id))
+    ranchos = Rancho.query.order_by(Rancho.name).all()
+    return render_template("admin/owner.html", o=o, ranchos=ranchos)
+
+
+@app.route("/admin/donos/<int:oid>/nova-senha", methods=["POST"])
+@admin_required
+def admin_owner_reset(oid):
+    o = db.session.get(Owner, oid) or abort(404)
+    password = temp_password()
+    o.set_password(password)
+    o.must_change = True
+    db.session.commit()
+    flash(f"Senha provisória nova de {o.login}: {password} · Passe para o dono: ela não aparece de novo, "
+          "e ele vai trocar no próximo acesso.", "ok")
+    return redirect(url_for("admin_owner", oid=o.id))
+
+
+@app.route("/admin/donos/<int:oid>/excluir", methods=["POST"])
+@admin_required
+def admin_owner_delete(oid):
+    o = db.session.get(Owner, oid) or abort(404)
+    for r in o.ranchos:  # os ranchos continuam no site; só ficam sem conta de dono
+        r.owner_id = None
+    db.session.delete(o)
+    db.session.commit()
+    flash(f"Conta {o.login} excluída. Os ranchos dela continuam no site.", "ok")
+    return redirect(url_for("admin_owners"))
 
 
 @app.route("/admin/lead/<int:lid>/alternar", methods=["POST"])

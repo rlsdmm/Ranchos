@@ -3,8 +3,23 @@
 {% block content %}
 <div class="edit-head">
   <h1>{{ r.name if r else 'Novo rancho' }}</h1>
-  {% if r %}<div class="actions"><a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a></div>{% endif %}
+  {% if r %}<div class="actions"><a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">{{ 'Ver prévia' if not r.public else 'Ver no site' }} ↗</a></div>{% endif %}
 </div>
+
+{% if r and r.pending %}
+<div class="pending-box">
+  {% if is_admin() %}
+    <p><strong>Cadastrado pelo dono{% if r.owner %} ({{ r.owner.login }}){% endif %}, aguardando sua aprovação.</strong> Revise os dados e as fotos antes de publicar.</p>
+    <form method="post" action="{{ url_for('admin_approve', rid=r.id) }}" data-confirm="Publicar {{ r.name }} no site?">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="back" value="edit">
+      <button class="btn btn-dark btn-sm">Aprovar e publicar</button>
+    </form>
+  {% else %}
+    <p><strong>Aguardando aprovação.</strong> Pode continuar completando o anúncio: assim que a nossa equipe aprovar, ele aparece no site.</p>
+  {% endif %}
+</div>
+{% endif %}
 
 <form method="post" enctype="multipart/form-data" class="form edit-form" id="edit-form">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
@@ -58,13 +73,28 @@
       <label>WhatsApp com DDD <input name="owner_whatsapp" maxlength="30" value="{{ r.owner_whatsapp if r else '' }}" placeholder="(16) 99999-9999"></label>
     </div>
     <p class="muted small">O número não aparece no site. O botão passa pelo site antes de abrir o WhatsApp, para contar os contatos.</p>
+    {% if not is_admin() and r and r.verified %}
+      <p class="muted small">⚠️ Se você trocar o número, o selo "Verificado" sai até a nossa equipe conferir o número novo. É uma proteção contra golpe.</p>
+    {% endif %}
+    {% if is_admin() %}
+      <label>Conta de dono que pode editar
+        <select name="owner_id">
+          <option value="">Nenhuma (só o administrador)</option>
+          {% for o in owners %}<option value="{{ o.id }}" {% if r and r.owner_id == o.id %}selected{% endif %}>{{ o.name ~ ' · ' if o.name }}{{ o.login }}{% if not o.active %} (desativada){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+    {% endif %}
   </fieldset>
 
   <fieldset>
     <legend>Publicação</legend>
-    <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Aparece no site</label>
-    <label class="check"><input type="checkbox" name="featured" {% if r and r.featured %}checked{% endif %}> Destaque (topo da lista)</label>
-    <label class="check"><input type="checkbox" name="verified" {% if r and r.verified %}checked{% endif %}> Verificado (visitei e confirmei o dono)</label>
+    {% if is_admin() %}
+      <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Aparece no site</label>
+      <label class="check"><input type="checkbox" name="featured" {% if r and r.featured %}checked{% endif %}> Destaque (topo da lista)</label>
+      <label class="check"><input type="checkbox" name="verified" {% if r and r.verified %}checked{% endif %}> Verificado (visitei e confirmei o dono)</label>
+    {% else %}
+      <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Anúncio ativo <span class="muted">(desmarque para pausar, por exemplo em reforma)</span></label>
+    {% endif %}
     {% if r %}<label class="check"><input type="checkbox" name="regen_slug"> Atualizar o link com o nome novo <span class="muted">(link atual: /rancho/{{ r.slug }})</span></label>{% endif %}
   </fieldset>
 
@@ -107,7 +137,7 @@
 </ul>
 {% endif %}
 
-{% if r %}
+{% if r and is_admin() %}
 <form method="post" action="{{ url_for('admin_delete', rid=r.id) }}" class="danger-zone" data-confirm="Excluir {{ r.name }} para sempre? Fotos e estatísticas também serão apagadas.">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <button class="btn btn-outline danger">Excluir rancho</button>
