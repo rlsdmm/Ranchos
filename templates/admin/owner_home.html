@@ -8,7 +8,7 @@
 {% if ranchos %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visitas (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th></th></tr></thead>
+  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visitas (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th class="num">♥ Salvaram (30 dias)</th><th></th></tr></thead>
   <tbody>
   {% for r in ranchos %}
     <tr class="{% if not r.public %}off{% endif %}">
@@ -23,6 +23,7 @@
       </td>
       <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
       <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
+      <td class="num">{{ c30.get((r.id, 'fav'), 0) }}</td>
       <td><div class="actions">
         <a href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a>
         <a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>

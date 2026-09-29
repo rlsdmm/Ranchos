@@ -31,6 +31,7 @@
 <div class="kpis">
   <div class="kpi"><strong>{{ totals.views }}</strong><span>visitas nos anúncios</span></div>
   <div class="kpi"><strong>{{ totals.whatsapp }}</strong><span>cliques no WhatsApp dos donos</span></div>
+  <div class="kpi"><strong>{{ totals.fav }}</strong><span>pessoas salvaram ranchos na lista ♥</span></div>
   <div class="kpi"><strong>{{ totals.servico }}</strong><span>pedidos de cozinheira/faxina</span></div>
   <div class="kpi"><strong>{{ leads|selectattr('handled', 'equalto', false)|list|length }}</strong><span>donos querendo anunciar</span></div>
 </div>
@@ -39,7 +40,7 @@
 {% if ranchos %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th>No site</th><th>Destaque</th><th>Verificado</th><th></th></tr></thead>
+  <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th class="num">♥ Salvaram</th><th>No site</th><th>Destaque</th><th>Verificado</th><th></th></tr></thead>
   <tbody>
   {% for r in ranchos if not r.pending %}
     <tr class="{% if not r.active %}off{% endif %}">
@@ -49,6 +50,7 @@
       </td>
       <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
       <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
+      <td class="num">{{ c30.get((r.id, 'fav'), 0) }}</td>
       {% for field, on in [('active', r.active), ('featured', r.featured), ('verified', r.verified)] %}
       <td>
         <form method="post" action="{{ url_for('admin_toggle', rid=r.id, field=field) }}">

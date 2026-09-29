@@ -36,10 +36,23 @@
     const slug = b.dataset.fav;
     if (favs.includes(slug)) favs = favs.filter((s) => s !== slug);
     else if (favs.length >= FAV_MAX) { alert(`A lista vai até ${FAV_MAX} ranchos. Tire algum antes de salvar outro.`); return; }
-    else favs = [...favs, slug];
+    else {
+      favs = [...favs, slug];
+      countSave(slug);
+    }
     writeFavs(favs);
     syncFavs();
   });
+  // Avisa o site na primeira vez que este navegador salva o rancho (tirar e pôr de novo não soma).
+  // O número aparece só no painel e no relatório do dono.
+  const COUNTED_KEY = 'ranchos-contados';
+  function countSave(slug) {
+    let counted = [];
+    try { counted = JSON.parse(localStorage.getItem(COUNTED_KEY)) || []; } catch { /* sem armazenamento */ }
+    if (counted.includes(slug)) return;
+    fetch(`/rancho/${encodeURIComponent(slug)}/salvou`, { method: 'POST', keepalive: true }).catch(() => {});
+    try { localStorage.setItem(COUNTED_KEY, JSON.stringify([...counted, slug].slice(-200))); } catch { /* idem */ }
+  }
   // /lista sem ranchos no endereço: abre a lista salva neste navegador
   if (document.getElementById('lista-vazia') && !new URLSearchParams(location.search).get('r')) {
     const favs = readFavs();

@@ -266,7 +266,7 @@ class Photo(db.Model):
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), index=True)
-    kind = db.Column(db.String(20), nullable=False)  # view | whatsapp | servico
+    kind = db.Column(db.String(20), nullable=False)  # view | whatsapp | servico | fav (♥ na lista)
     created_at = db.Column(db.DateTime, default=now_utc, index=True)
 
 
@@ -653,6 +653,21 @@ def rancho_whatsapp(slug):
     return redirect(f"https://wa.me/{r.whatsapp_digits}?text={quote(msg)}")
 
 
+@app.route("/rancho/<slug>/salvou", methods=["POST"])
+def rancho_saved(slug):
+    """Conta quem tocou no ♥ (uma vez por navegador por rancho). O número aparece só
+    no painel e no relatório do dono, não no site."""
+    origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    if origin and urlparse(origin).netloc != request.host:  # só aceita vindo do próprio site
+        abort(403)
+    r = public_ranchos().filter_by(slug=slug).first_or_404()
+    counted = session.get("faved", [])
+    if r.id not in counted:
+        log_event(r.id, "fav")
+        session["faved"] = (counted + [r.id])[-100:]
+    return "", 204
+
+
 @app.route("/servicos/whatsapp")
 def servicos_whatsapp():
     if not SITE_WHATSAPP:
@@ -885,6 +900,7 @@ def admin_home():
         "views": sum(n for (_, k), n in c30.items() if k == "view"),
         "whatsapp": sum(n for (_, k), n in c30.items() if k == "whatsapp"),
         "servico": sum(n for (_, k), n in c30.items() if k == "servico"),
+        "fav": sum(n for (_, k), n in c30.items() if k == "fav"),
     }
     return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals)
 
@@ -1114,6 +1130,7 @@ def admin_report(rid):
             "short": MONTHS_PT[m0.month - 1][:3],
             "views": sel.count("view"),
             "whatsapp": sel.count("whatsapp"),
+            "fav": sel.count("fav"),
         })
     months.reverse()
     cur = months[0]
@@ -1122,6 +1139,7 @@ def admin_report(rid):
     text = (f"Olá{(' ' + first) if first else ''}! Resumo de {cur['label']} do {r.name} no {SITE_NAME}:\n"
             f"👀 {cur['views']} pessoas viram o anúncio\n"
             f"💬 {cur['whatsapp']} pessoas clicaram para falar com você no WhatsApp\n"
+            + (f"❤️ {cur['fav']} pessoas salvaram o rancho na lista para mostrar ao grupo\n" if cur["fav"] else "") +
             f"No mês anterior foram {prev['whatsapp']} contatos.\n"
             f"Link do anúncio: {site_url()}/rancho/{r.slug}")
     wa_link = f"https://wa.me/{r.whatsapp_digits}?text={quote(text)}" if r.whatsapp_digits else ""
