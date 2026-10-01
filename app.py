@@ -871,6 +871,18 @@ def rancho_whatsapp(slug):
     return redirect(f"https://wa.me/{r.whatsapp_digits}?text={quote(msg)}")
 
 
+@app.route("/rancho/<slug>/agenda.json")
+def rancho_agenda_json(slug):
+    """Dias ocupados do rancho, para o site próprio do dono mostrar a mesma agenda."""
+    r = public_ranchos().filter_by(slug=slug).first_or_404()
+    updated = r.calendar_updated_at
+    data = {
+        "atualizadaEm": updated and updated.isoformat() + "Z",  # vazio = rancho ainda sem agenda
+        "ocupados": sorted(d.isoformat() for d in busy_set(r)) if updated else [],
+    }
+    return data, 200, {"Access-Control-Allow-Origin": "*"}  # só leitura, sem dados pessoais
+
+
 @app.route("/rancho/<slug>/salvou", methods=["POST"])
 def rancho_saved(slug):
     """Conta quem tocou no ♥ (uma vez por navegador por rancho). O número aparece só
