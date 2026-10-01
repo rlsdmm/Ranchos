@@ -938,6 +938,9 @@ def image(pid):
 
 @app.route("/robots.txt")
 def robots():
+    # Em produção quem responde é a cópia estática firebase-public/robots.txt (o Firebase serve
+    # arquivo estático antes de repassar ao Cloud Run), para o Google sempre conseguir ler
+    # mesmo se a ligação com o Cloud Run engasgar. Mudou aqui? Atualize lá também.
     body = f"User-agent: *\nDisallow: /admin\nDisallow: /rancho/*/whatsapp\nSitemap: {site_url()}/sitemap.xml\n"
     return Response(body, mimetype="text/plain")
 

@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /admin
+Disallow: /rancho/*/whatsapp
+Sitemap: https://ranchosdemiguelopolis.com.br/sitemap.xml
