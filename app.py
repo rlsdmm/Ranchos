@@ -567,7 +567,7 @@ def track_source():
     Um link com etiqueta ou de anúncio clicado depois troca a origem (vale o último anúncio)."""
     if request.method != "GET" or request.endpoint not in LANDING_ENDPOINTS:
         return
-    if CANONICAL_HOST and request.host != CANONICAL_HOST:  # vai ser redirecionado; conta lá
+    if CANONICAL_HOST and request.host != CANONICAL_HOST:  # *.web.app / *.run.app não entram na conta
         return
     tagged = any(request.args.get(k) for k in ("utm_source", "gclid", "gbraid", "wbraid", "fbclid"))
     if "src" in session and not tagged:
@@ -698,13 +698,11 @@ def inject_globals():
 CANONICAL_HOST = urlparse(BASE_URL).netloc
 
 
-@app.before_request
-def canonical_host():
-    """O site também responde em *.web.app e *.run.app; manda tudo pro domínio oficial
-    para o Google não indexar cópias."""
-    if CANONICAL_HOST and request.host != CANONICAL_HOST:
-        code = 301 if request.method in ("GET", "HEAD") else 308
-        return redirect(BASE_URL + request.full_path.rstrip("?"), code=code)
+# Não redirecionar outros hosts para o domínio oficial: atrás do Firebase, parte das requisições
+# ao próprio domínio (inclusive do robô do Google buscando robots.txt e sitemap) chega sem
+# X-Forwarded-Host, com o host interno *.a.run.app. O redirecionamento mandava essas requisições
+# para o mesmo endereço, em loop, e o Search Console não conseguia ler o sitemap (out/2026).
+# Para o Google ficar só com o domínio, basta o <link rel="canonical"> que as páginas já têm.
 
 
 BR_TZ = ZoneInfo("America/Sao_Paulo")
