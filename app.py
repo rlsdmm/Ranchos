@@ -23,7 +23,8 @@ import time
 import unicodedata
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+import calendar as calmod
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import quote, urlparse
 from zoneinfo import ZoneInfo
@@ -187,11 +188,14 @@ class Rancho(db.Model):
     # (fora do site) até o administrador aprovar.
     owner_id = db.Column(db.Integer, db.ForeignKey("owner.id", ondelete="SET NULL"), index=True)
     pending = db.Column(db.Boolean, default=False)
+    # Última vez que a agenda foi mexida. Vazio = rancho sem agenda (não mostra no site).
+    calendar_updated_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     photos = db.relationship("Photo", backref="rancho", cascade="all, delete-orphan",
                              order_by="Photo.position")
+    busy_days = db.relationship("BusyDay", cascade="all, delete-orphan", lazy="dynamic")
 
     @property
     def public(self):
@@ -232,6 +236,15 @@ class Owner(db.Model):
 
     def check_password(self, pw):
         return check_password_hash(self.password_hash, pw)
+
+
+class BusyDay(db.Model):
+    """Dia em que o rancho está alugado (agenda). Uma linha por dia ocupado."""
+    __tablename__ = "busy_day"
+    __table_args__ = (db.UniqueConstraint("rancho_id", "day"),)
+    id = db.Column(db.Integer, primary_key=True)
+    rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False)
 
 
 class LoginThrottle(db.Model):
@@ -301,6 +314,7 @@ with app.app_context():
         ("rancho", "freezers", "INTEGER DEFAULT 0"),
         ("rancho", "beer_fridges", "INTEGER DEFAULT 0"),
         ("event", "source", "VARCHAR(40) DEFAULT ''"),
+        ("rancho", "calendar_updated_at", "TIMESTAMP"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -577,6 +591,79 @@ MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho"
              "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
 
+# ---------------------------------------------------------------------------
+# Agenda
+# ---------------------------------------------------------------------------
+CALENDAR_MONTHS = 12  # meses que a agenda mostra, a partir do mês atual
+
+
+def easter(year):
+    """Domingo de Páscoa (algoritmo de Meeus/Jones/Butcher, calendário gregoriano)."""
+    a, b, c = year % 19, year // 100, year % 100
+    d, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = (h + l - 7 * m + 114) % 31 + 1
+    return date(year, month, day)
+
+
+def br_holidays(year):
+    """Feriados nacionais (e o Carnaval, que todo mundo emenda). Municipais ficam de fora."""
+    e = easter(year)
+    days = {
+        date(year, 1, 1): "Confraternização Universal", date(year, 4, 21): "Tiradentes",
+        date(year, 5, 1): "Dia do Trabalho", date(year, 9, 7): "Independência",
+        date(year, 10, 12): "Nossa Senhora Aparecida", date(year, 11, 2): "Finados",
+        date(year, 11, 15): "Proclamação da República", date(year, 11, 20): "Consciência Negra",
+        date(year, 12, 25): "Natal",
+        e - timedelta(days=48): "Carnaval", e - timedelta(days=47): "Carnaval",
+        e - timedelta(days=2): "Sexta-feira Santa", e + timedelta(days=60): "Corpus Christi",
+    }
+    return days
+
+
+def today_br():
+    return datetime.now(BR_TZ).date()
+
+
+def calendar_months(busy, n=CALENDAR_MONTHS):
+    """Meses da agenda a partir do mês atual: [{label, weeks: [[dia|None x7]]}].
+    Semana começando no domingo, como nos calendários brasileiros."""
+    today = today_br()
+    holidays = {}
+    for y in (today.year, today.year + 1, today.year + 2):
+        holidays.update(br_holidays(y))
+    cal = calmod.Calendar(firstweekday=6)
+    months, y, m = [], today.year, today.month
+    for _ in range(n):
+        weeks = []
+        for week in cal.monthdatescalendar(y, m):
+            weeks.append([None if d.month != m else {
+                "date": d, "iso": d.isoformat(), "past": d < today, "today": d == today,
+                "busy": d in busy, "holiday": holidays.get(d, ""), "weekend": d.weekday() >= 5,
+            } for d in week])
+        months.append({"label": f"{MONTHS_PT[m - 1].capitalize()} de {y}", "weeks": weeks})
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return months
+
+
+def busy_set(r, start=None):
+    start = start or today_br().replace(day=1)
+    return {b.day for b in r.busy_days.filter(BusyDay.day >= start)}
+
+
+def parse_day(v):
+    try:
+        return date.fromisoformat(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def source_stats(since):
     """Linhas da tabela "De onde vêm os turistas", da origem que mais trouxe contato para a menor."""
     q = (db.session.query(Event.source, Event.kind, func.count(Event.id))
@@ -766,7 +853,8 @@ def rancho(slug):
         "amenityFeature": [{"@type": "LocationFeatureSpecification", "name": AMENITIES[a][0], "value": True}
                            for a in r.amenity_list],
     }
-    return render_template("rancho.html", r=r, others=others, ld=ld)
+    months = calendar_months(busy_set(r)) if r.calendar_updated_at else None
+    return render_template("rancho.html", r=r, others=others, ld=ld, months=months)
 
 
 @app.route("/rancho/<slug>/whatsapp")
@@ -777,6 +865,11 @@ def rancho_whatsapp(slug):
     log_event(r.id, "whatsapp")
     msg = (f"Olá{(' ' + r.owner_name.split()[0]) if r.owner_name else ''}! "
            f"Vi o {r.name} no site {SITE_NAME} e gostaria de saber a disponibilidade para as datas: ")
+    # Datas escolhidas na agenda da página do rancho (?de=2026-10-10&ate=2026-10-12)
+    start, end = parse_day(request.args.get("de")), parse_day(request.args.get("ate"))
+    if start and start >= today_br():
+        end = end if end and start <= end <= start + timedelta(days=60) else start
+        msg += (f"{start:%d/%m/%Y}" if end == start else f"{start:%d/%m/%Y} a {end:%d/%m/%Y}") + "."
     return redirect(f"https://wa.me/{r.whatsapp_digits}?text={quote(msg)}")
 
 
@@ -1129,6 +1222,38 @@ def admin_edit(rid=None):
         return redirect(url_for("admin_edit", rid=r.id))
     owners = Owner.query.order_by(Owner.name, Owner.login).all() if is_admin() else []
     return render_template("admin/edit.html", r=r, owners=owners)
+
+
+@app.route("/admin/rancho/<int:rid>/agenda")
+@panel_required
+def admin_calendar(rid):
+    r = editable_rancho(rid)
+    return render_template("admin/agenda.html", r=r, months=calendar_months(busy_set(r)))
+
+
+@app.route("/admin/rancho/<int:rid>/agenda", methods=["POST"])
+@panel_required
+def admin_calendar_save(rid):
+    """Marca ou libera dias (um ou um período). Responde JSON para a página não recarregar."""
+    r = editable_rancho(rid)
+    busy = request.form.get("busy") == "1"
+    today = today_br()
+    days = sorted({d for d in (parse_day(x) for x in request.form.get("days", "").split(",")) if d})
+    days = [d for d in days if today <= d <= today + timedelta(days=400)][:400]  # passado não muda
+    if not days:
+        return {"ok": False, "erro": "Nenhum dia válido."}, 400
+    existing = {b.day: b for b in r.busy_days.filter(BusyDay.day.in_(days))}
+    for d in days:
+        if busy and d not in existing:
+            db.session.add(BusyDay(rancho_id=r.id, day=d))
+        elif not busy and d in existing:
+            db.session.delete(existing[d])
+    r.calendar_updated_at = now_utc()
+    try:
+        db.session.commit()
+    except exc.IntegrityError:  # duas abas marcando o mesmo dia ao mesmo tempo
+        db.session.rollback()
+    return {"ok": True, "updated": r.calendar_updated_at and local_time(r.calendar_updated_at)}
 
 
 @app.route("/admin/rancho/<int:rid>/aprovar", methods=["POST"])

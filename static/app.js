@@ -173,6 +173,122 @@
     });
   });
 
+  // Agenda: navegação entre os meses (1 por vez no celular, 2 na tela grande)
+  document.querySelectorAll('[data-cal]').forEach((cal) => {
+    const months = [...cal.querySelectorAll('.cal-month')];
+    const prev = cal.querySelector('.cal-prev'), next = cal.querySelector('.cal-next');
+    const pos = cal.querySelector('.cal-pos');
+    const wide = matchMedia('(min-width: 760px)');
+    let i = 0;
+    const show = () => {
+      const per = wide.matches ? 2 : 1;
+      i = Math.max(0, Math.min(i, months.length - per));
+      months.forEach((m, n) => { m.hidden = n < i || n >= i + per; });
+      prev.disabled = i === 0;
+      next.disabled = i + per >= months.length;
+      pos.textContent = `${i + 1}${per > 1 ? '–' + (i + per) : ''} de ${months.length} meses`;
+    };
+    prev.addEventListener('click', () => { i -= wide.matches ? 2 : 1; show(); });
+    next.addEventListener('click', () => { i += wide.matches ? 2 : 1; show(); });
+    wide.addEventListener('change', show);
+    show();
+  });
+
+  const fmtDay = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
+  const daysBetween = (a, b) => { // datas ISO de a até b, inclusive
+    const out = [];
+    for (let d = new Date(`${a}T12:00:00`); d <= new Date(`${b}T12:00:00`); d.setDate(d.getDate() + 1)) {
+      out.push(d.toISOString().slice(0, 10));
+    }
+    return out;
+  };
+
+  // Agenda pública: turista toca na chegada e na saída; o botão do WhatsApp leva as datas
+  const pubCal = document.querySelector('[data-cal="public"]');
+  if (pubCal) {
+    const dayBtn = (iso) => pubCal.querySelector(`[data-day="${iso}"]`);
+    const box = document.getElementById('sel-dates');
+    const hint = document.getElementById('sel-hint');
+    const waLinks = [...document.querySelectorAll('.js-wa')];
+    const waBase = waLinks.map((a) => a.getAttribute('href'));
+    let start = null, end = null;
+    const paint = () => {
+      pubCal.querySelectorAll('.cal-day.sel, .cal-day.in-range').forEach((b) => b.classList.remove('sel', 'in-range'));
+      if (start) {
+        daysBetween(start, end || start).forEach((iso) => dayBtn(iso)?.classList.add('in-range'));
+        dayBtn(start)?.classList.add('sel');
+        if (end) dayBtn(end)?.classList.add('sel');
+      }
+      const qs = start ? `?de=${start}${end ? `&ate=${end}` : ''}` : '';
+      waLinks.forEach((a, n) => a.setAttribute('href', waBase[n] + qs));
+      if (box) {
+        box.hidden = !start;
+        box.querySelector('.js-sel-text').textContent = start
+          ? (end ? `${fmtDay(start)} a ${fmtDay(end)}` : `${fmtDay(start)} (toque na data de saída)`) : '';
+      }
+      if (hint) hint.hidden = !!start;
+    };
+    pubCal.addEventListener('click', (e) => {
+      const b = e.target.closest('.cal-day');
+      if (!b || b.disabled) return;
+      const iso = b.dataset.day;
+      if (b.classList.contains('busy')) { b.blur(); return; } // ocupado: não seleciona
+      if (!start || end || iso < start) { start = iso; end = null; }
+      else if (iso === start) { start = null; }
+      else if (daysBetween(start, iso).some((d) => dayBtn(d)?.classList.contains('busy'))) {
+        alert('Tem dia ocupado no meio desse período. Escolha outras datas.');
+        start = iso; end = null;
+      } else { end = iso; }
+      paint();
+    });
+    box?.querySelector('.js-sel-clear').addEventListener('click', () => { start = end = null; paint(); });
+  }
+
+  // Agenda do painel: dono toca no dia para marcar/liberar (ou marca um período)
+  const editCal = document.querySelector('[data-cal="edit"]');
+  const agenda = document.getElementById('agenda');
+  if (editCal && agenda) {
+    const status = document.getElementById('agenda-status');
+    const rangeBox = document.getElementById('agenda-range');
+    const dayBtn = (iso) => editCal.querySelector(`[data-day="${iso}"]`);
+    let rangeStart = null;
+    const save = async (days, busy) => {
+      days.forEach((iso) => dayBtn(iso)?.classList.toggle('busy', busy)); // muda na hora...
+      status.textContent = 'Salvando…';
+      try {
+        const body = new URLSearchParams({ _csrf: agenda.dataset.csrf, days: days.join(','), busy: busy ? '1' : '0' });
+        const resp = await fetch(agenda.dataset.url, { method: 'POST', body });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok) throw new Error(data.erro || 'erro ao salvar');
+        status.textContent = `Salvo ✓ · atualizada em ${data.updated}`;
+      } catch (err) {
+        days.forEach((iso) => dayBtn(iso)?.classList.toggle('busy', !busy)); // ...e desfaz se falhar
+        status.textContent = `Não salvou (${err.message}). Confira a internet e tente de novo.`;
+      }
+    };
+    editCal.addEventListener('click', (e) => {
+      const b = e.target.closest('.cal-day');
+      if (!b || b.disabled) return;
+      const iso = b.dataset.day;
+      if (!rangeBox.checked) { save([iso], !b.classList.contains('busy')); return; }
+      if (!rangeStart) {
+        rangeStart = iso;
+        b.classList.add('pending');
+        status.textContent = `Início: ${fmtDay(iso)}. Agora toque no último dia do período.`;
+        return;
+      }
+      const [a, z] = rangeStart < iso ? [rangeStart, iso] : [iso, rangeStart];
+      const busy = !dayBtn(rangeStart).classList.contains('busy'); // período segue o 1º dia: livre -> ocupa
+      dayBtn(rangeStart).classList.remove('pending');
+      rangeStart = null;
+      save(daysBetween(a, z).filter((d) => dayBtn(d) && !dayBtn(d).disabled), busy);
+    });
+    rangeBox.addEventListener('change', () => {
+      if (rangeStart) dayBtn(rangeStart)?.classList.remove('pending');
+      rangeStart = null;
+    });
+  }
+
   // Painel: gerador de link com etiqueta de origem (?utm_source=...)
   const lbSource = document.getElementById('lb-source');
   if (lbSource) {

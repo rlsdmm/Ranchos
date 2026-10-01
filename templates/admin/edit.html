@@ -3,7 +3,7 @@
 {% block content %}
 <div class="edit-head">
   <h1>{{ r.name if r else 'Novo rancho' }}</h1>
-  {% if r %}<div class="actions"><a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">{{ 'Ver prévia' if not r.public else 'Ver no site' }} ↗</a></div>{% endif %}
+  {% if r %}<div class="actions"><a href="{{ url_for('admin_calendar', rid=r.id) }}">📅 Agenda</a><a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">{{ 'Ver prévia' if not r.public else 'Ver no site' }} ↗</a></div>{% endif %}
 </div>
 
 {% if r and r.pending %}

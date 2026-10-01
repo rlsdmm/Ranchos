@@ -1,0 +1,34 @@
+{# Agenda do rancho. mode="public": turista escolhe chegada/saída; mode="edit": dono marca dias ocupados. #}
+{% macro calendar(months, mode="public") %}
+<div class="cal" data-cal="{{ mode }}">
+  <div class="cal-nav">
+    <button type="button" class="cal-prev" aria-label="Mês anterior">‹</button>
+    <span class="cal-pos" aria-live="polite"></span>
+    <button type="button" class="cal-next" aria-label="Próximo mês">›</button>
+  </div>
+  <div class="cal-months">
+    {% for m in months %}
+    <section class="cal-month" {% if not loop.first %}hidden{% endif %}>
+      <h3>{{ m.label }}</h3>
+      <div class="cal-grid" role="grid">
+        {% for wd in ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'] %}<span class="cal-wd" aria-hidden="true">{{ wd }}</span>{% endfor %}
+        {% for week in m.weeks %}{% for d in week %}
+          {% if d %}
+          <button type="button" class="cal-day{{ ' busy' if d.busy }}{{ ' past' if d.past }}{{ ' today' if d.today }}{{ ' hol' if d.holiday }}{{ ' we' if d.weekend }}"
+                  data-day="{{ d.iso }}" {% if d.past %}disabled{% endif %}
+                  title="{{ d.date.strftime('%d/%m') }}{{ ' · ' ~ d.holiday if d.holiday }}{{ ' · ocupado' if d.busy }}"
+                  aria-label="{{ d.date.strftime('%d/%m/%Y') }}{{ ', feriado: ' ~ d.holiday if d.holiday }}{{ ', ocupado' if d.busy else ', livre' }}">{{ d.date.day }}</button>
+          {% else %}<span class="cal-empty"></span>{% endif %}
+        {% endfor %}{% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  <p class="cal-legend small">
+    <span><i class="lg-free"></i> Livre</span>
+    <span><i class="lg-busy"></i> Ocupado</span>
+    <span><i class="lg-hol"></i> Feriado</span>
+    {% if mode == "public" %}<span><i class="lg-sel"></i> Suas datas</span>{% endif %}
+  </p>
+</div>
+{% endmacro %}

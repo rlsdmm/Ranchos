@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% from "_calendar.html" import calendar %}
+{% block title %}Agenda: {{ r.name }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>Agenda · {{ r.name }}</h1>
+  <div class="actions"><a href="{{ url_for('admin_edit', rid=r.id) }}">Editar rancho</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a></div>
+</div>
+
+<p class="muted">Toque nos dias para marcar como <strong>ocupado</strong> (toque de novo para liberar). Salva na hora.
+  Os turistas veem essa agenda na página do rancho, então quanto mais atualizada, menos pergunta repetida no WhatsApp.</p>
+
+<div class="agenda-tools" id="agenda" data-url="{{ url_for('admin_calendar_save', rid=r.id) }}" data-csrf="{{ csrf_token() }}">
+  <label class="check-inline"><input type="checkbox" id="agenda-range"> <span>Marcar um período <span class="muted">(toque no primeiro e no último dia)</span></span></label>
+  <p class="small" id="agenda-status">{% if r.calendar_updated_at %}Atualizada em {{ r.calendar_updated_at|local }}{% else %}A agenda ainda não aparece no site: ela passa a aparecer depois da primeira atualização.{% endif %}</p>
+</div>
+
+{{ calendar(months, mode="edit") }}
+{% endblock %}
