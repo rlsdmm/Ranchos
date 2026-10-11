@@ -1005,6 +1005,8 @@ def index():
 
     ranchos = public_ranchos().all()
     total = len(ranchos)
+    # Foto do topo: a do primeiro rancho na ordem de destaque (não muda com os filtros)
+    hero = next((r for r in default_order(ranchos) if r.cover), None)
     if cap:
         ranchos = [r for r in ranchos if (r.capacity or 0) >= cap]
     if max_price:
@@ -1023,7 +1025,7 @@ def index():
 
     filtering = bool(cap or max_price or wanted)
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
-                           wanted=wanted, order=order, filtering=filtering,
+                           wanted=wanted, order=order, filtering=filtering, hero=hero,
                            categories=categories_with_ranchos(), holiday=holiday_block())
 
 
