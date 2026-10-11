@@ -7,6 +7,18 @@
   <div class="actions"><a href="{{ url_for('admin_edit', rid=r.id) }}">Editar rancho</a><a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a></div>
 </div>
 
+{% if r.ical_url %}
+<div class="pending-box">
+  <p><strong>Agenda automática.</strong> Os dias ocupados são copiados da agenda de origem a cada 2 horas.
+    Para marcar ou liberar um dia, mude lá{% if is_admin() %} (ou tire o link em <a class="link" href="{{ url_for('admin_edit', rid=r.id) }}">Editar rancho</a>){% endif %}.</p>
+  <p class="small {{ 'danger' if r.ical_error else 'muted' }}">{% if r.ical_error %}A última cópia falhou: {{ r.ical_error }}{% elif r.ical_synced_at %}Última cópia: {{ r.ical_synced_at|local }}{% endif %}</p>
+  <form method="post" action="{{ url_for('admin_calendar_sync', rid=r.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn btn-outline btn-sm">Atualizar agora</button>
+  </form>
+</div>
+{{ calendar(months, mode="view") }}
+{% else %}
 <p class="muted">Toque nos dias para marcar como <strong>ocupado</strong> (toque de novo para liberar). Salva na hora.
   Os turistas veem essa agenda na página do rancho, então quanto mais atualizada, menos pergunta repetida no WhatsApp.</p>
 
@@ -16,4 +28,5 @@
 </div>
 
 {{ calendar(months, mode="edit") }}
+{% endif %}
 {% endblock %}

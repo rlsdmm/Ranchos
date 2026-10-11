@@ -101,6 +101,12 @@
       <label>Anúncio pago até <span class="muted">(ou fim do período grátis; vazio = sem cobrança)</span>
         <input type="date" name="paid_until" value="{{ (r.paid_until.isoformat() if r.paid_until else '') if r else trial_end.isoformat() }}">
       </label>
+      <label>Agenda externa <span class="muted">(opcional: link do Google Agenda, Airbnb ou Booking)</span>
+        <input name="ical_url" maxlength="500" value="{{ r.ical_url if r else '' }}" placeholder="https://calendar.google.com/calendar/embed?src=...">
+      </label>
+      <p class="muted small">Com o link, a agenda do rancho é copiada de lá a cada 2 horas e não se edita aqui.
+        Do Google Agenda serve o link de incorporar (o do site do dono) ou o endereço público em formato iCal.
+        {% if r and r.ical_url %}<br>{% if r.ical_error %}<span class="danger">Última tentativa falhou: {{ r.ical_error }}</span>{% elif r.ical_synced_at %}Copiada em {{ r.ical_synced_at|local }}.{% endif %}{% endif %}</p>
     {% else %}
       <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Anúncio ativo <span class="muted">(desmarque para pausar, por exemplo em reforma)</span></label>
     {% endif %}

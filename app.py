@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 import calendar as calmod
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 
 from flask import (Flask, Response, abort, flash, g, redirect, render_template,
@@ -156,6 +156,7 @@ PRICE_MONTH = "R$ 19,90"
 PRICE_YEAR = "R$ 200"
 BILLING_NOTICE_DAYS = 7  # o rancho entra na lista de cobrança do painel essa quantidade de dias antes de vencer
 PIX_KEY = os.environ.get("PIX_KEY", "")  # vai na mensagem de cobrança; vazio = mensagem sem Pix
+ICAL_SYNC_HOURS = 2  # agenda externa (Google Agenda, Airbnb...) é copiada de novo depois desse tempo
 
 BOT_RE = re.compile(r"bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|curl|wget|python", re.I)
 
@@ -204,6 +205,11 @@ class Rancho(db.Model):
     calendar_updated_at = db.Column(db.DateTime)
     # Até quando o anúncio está pago (ou no período grátis). Vazio = sem cobrança registrada.
     paid_until = db.Column(db.Date)
+    # Agenda externa do dono (.ics do Google Agenda, Airbnb, Booking). Preenchida = a agenda daqui
+    # é cópia dela e não se edita no painel.
+    ical_url = db.Column(db.String(500), default="")
+    ical_synced_at = db.Column(db.DateTime)
+    ical_error = db.Column(db.String(200), default="")
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
@@ -340,6 +346,9 @@ with app.app_context():
         ("event", "source", "VARCHAR(40) DEFAULT ''"),
         ("rancho", "calendar_updated_at", "TIMESTAMP"),
         ("rancho", "paid_until", "DATE"),
+        ("rancho", "ical_url", "VARCHAR(500) DEFAULT ''"),
+        ("rancho", "ical_synced_at", "TIMESTAMP"),
+        ("rancho", "ical_error", "VARCHAR(200) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -719,6 +728,121 @@ def calendar_months(busy, n=CALENDAR_MONTHS):
 def busy_set(r, start=None):
     start = start or today_br().replace(day=1)
     return {b.day for b in r.busy_days.filter(BusyDay.day >= start)}
+
+
+def ical_feed_url(url):
+    """Link da agenda em .ics. Aceita também o link de incorporar do Google Agenda, que é o que o
+    dono encontra no próprio site (calendar.google.com/calendar/embed?src=...)."""
+    url = (url or "").strip().replace("&#x26;", "&").replace("&amp;", "&")
+    m = re.search(r"calendar\.google\.com/calendar/(?:u/\d+/)?embed\?(?:[^#]*&)?src=([^&#]+)", url)
+    if m:
+        return f"https://calendar.google.com/calendar/ical/{quote(unquote(m.group(1)), safe='')}/public/basic.ics"
+    return url if url.startswith("https://") else ""
+
+
+def _ical_date(params, value):
+    """(dia em Brasília, tem_hora). Evento de dia inteiro vem como 20261019."""
+    if len(value) == 8:
+        return date(int(value[:4]), int(value[4:6]), int(value[6:8])), False
+    dt = datetime.strptime(value.rstrip("Z")[:15], "%Y%m%dT%H%M%S")
+    tzid = re.search(r"TZID=([^;:]+)", params)
+    if value.endswith("Z"):
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        try:
+            dt = dt.replace(tzinfo=ZoneInfo(tzid.group(1)) if tzid else BR_TZ)
+        except Exception:
+            dt = dt.replace(tzinfo=BR_TZ)
+    return dt.astimezone(BR_TZ).date(), True
+
+
+def ical_busy_days(text, start, end):
+    """Dias ocupados entre start e end num arquivo .ics. Todo evento conta como ocupado
+    (Google Agenda, Airbnb e Booking só exportam as reservas), inclusive os marcados como "livre":
+    no Google Agenda, evento de dia inteiro já nasce "livre". Só cancelado não conta.
+    Evento repetido (RRULE) conta só a primeira vez."""
+    text = re.sub(r"\r?\n[ \t]", "", text)  # linhas dobradas do formato .ics
+    days = set()
+    for ev in text.split("BEGIN:VEVENT")[1:]:
+        ev = ev.split("END:VEVENT")[0]
+        if re.search(r"^STATUS:CANCELLED", ev, re.M | re.I):
+            continue
+        s = re.search(r"^DTSTART([^:\r\n]*):(\S+)", ev, re.M)
+        if not s:
+            continue
+        try:
+            a, timed = _ical_date(s.group(1), s.group(2))
+            e = re.search(r"^DTEND([^:\r\n]*):(\S+)", ev, re.M)
+            b = _ical_date(e.group(1), e.group(2))[0] if e else a
+        except ValueError:
+            continue
+        # Dia inteiro: o fim é o dia seguinte ao último. Com hora: o dia em que termina também conta.
+        b = b + timedelta(days=1) if timed else max(b, a + timedelta(days=1))
+        d = max(a, start)
+        while d < b and d <= end:
+            days.add(d)
+            d += timedelta(days=1)
+    return days
+
+
+def sync_ical(r):
+    """Copia os dias ocupados da agenda externa para a agenda do rancho, de hoje em diante.
+    A agenda externa manda: dia liberado lá é liberado aqui. Se o link falhar, a agenda
+    daqui fica como estava e o erro aparece no painel."""
+    r.ical_synced_at = now_utc()
+    try:
+        url = ical_feed_url(r.ical_url)
+        if not url:
+            raise ValueError("o link precisa começar com https://")
+        req = urllib.request.Request(url, headers={"User-Agent": f"{SITE_NAME} (agenda)"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            text = resp.read(3_000_000).decode("utf-8", "replace")
+        if "BEGIN:VCALENDAR" not in text:
+            raise ValueError("o link não é de uma agenda (.ics)")
+    except Exception as e:  # rede, 404, agenda que deixou de ser pública...
+        r.ical_error = str(e)[:200] or e.__class__.__name__
+        db.session.commit()
+        return False
+    today = today_br()
+    want = ical_busy_days(text, today, today + timedelta(days=400))
+    have = {b.day: b for b in r.busy_days.filter(BusyDay.day >= today)}
+    for d, b in have.items():
+        if d not in want:
+            db.session.delete(b)
+    for d in want - have.keys():
+        db.session.add(BusyDay(rancho_id=r.id, day=d))
+    r.ical_error = ""
+    r.calendar_updated_at = now_utc()
+    try:
+        db.session.commit()
+    except exc.IntegrityError:  # outro worker sincronizou o mesmo rancho ao mesmo tempo
+        db.session.rollback()
+    return True
+
+
+_ical_next_check = 0.0
+
+
+@app.before_request
+def sync_external_calendars():
+    """Sem tarefa agendada no Cloud Run: as visitas às páginas com agenda disparam a cópia.
+    Cada processo olha no máximo a cada 10 minutos, e só copia agendas mais velhas que
+    ICAL_SYNC_HOURS, então quase nenhuma visita espera por isso."""
+    global _ical_next_check
+    if request.method != "GET" or request.endpoint not in ("index", "rancho", "category", "group_list",
+                                                            "rancho_agenda_json"):
+        return
+    if time.time() < _ical_next_check:
+        return
+    _ical_next_check = time.time() + 600
+    stale = now_utc() - timedelta(hours=ICAL_SYNC_HOURS)
+    try:
+        for r in (Rancho.query.filter(Rancho.ical_url != "")
+                  .filter((Rancho.ical_synced_at.is_(None)) | (Rancho.ical_synced_at < stale)).limit(3)):
+            sync_ical(r)
+    except Exception:
+        db.session.rollback()  # agenda externa nunca derruba a página
+        app.logger.exception("falha ao sincronizar agenda externa")
 
 
 def parse_day(v):
@@ -1307,6 +1431,9 @@ def fill_rancho(r, form):
         r.verified = bool(form.get("verified"))
         r.featured = bool(form.get("featured"))
         r.paid_until = parse_day(form.get("paid_until"))
+        ical = form.get("ical_url", "").strip()[:500]
+        if ical != (r.ical_url or ""):
+            r.ical_url, r.ical_synced_at, r.ical_error = ical, None, ""
         oid = to_int(form.get("owner_id"))
         r.owner_id = oid if oid and db.session.get(Owner, oid) else None
     elif r.verified and old_digits and r.whatsapp_digits != old_digits:
@@ -1354,6 +1481,7 @@ def admin_edit(rid=None):
             if owner:  # rancho cadastrado pelo dono só vai ao ar depois da aprovação
                 r.owner_id, r.pending = owner.id, True
             db.session.add(r)
+        old_ical = r.ical_url or ""
         lost_seal = fill_rancho(r, request.form)
         if is_new or request.form.get("regen_slug"):
             db.session.flush()
@@ -1368,6 +1496,12 @@ def admin_edit(rid=None):
         if is_new and r.pending:
             msg += " Ele vai aparecer no site assim que for aprovado."
         flash(msg, "ok")
+        if r.ical_url and r.ical_url != old_ical:
+            if sync_ical(r):
+                n = r.busy_days.filter(BusyDay.day >= today_br()).count()
+                flash(f"Agenda copiada da agenda de origem: {n} dias ocupados.", "ok")
+            else:
+                flash(f"Não consegui ler a agenda de origem ({r.ical_error}). Confira o link.", "error")
         if lost_seal:
             flash("Como o WhatsApp mudou, o selo \"Verificado\" saiu até a gente conferir o número novo.", "error")
         return redirect(url_for("admin_edit", rid=r.id))
@@ -1388,6 +1522,8 @@ def admin_calendar(rid):
 def admin_calendar_save(rid):
     """Marca ou libera dias (um ou um período). Responde JSON para a página não recarregar."""
     r = editable_rancho(rid)
+    if r.ical_url:  # a próxima cópia da agenda de origem desfaria a mudança
+        return {"ok": False, "erro": "agenda copiada automaticamente; mude na agenda de origem"}, 400
     busy = request.form.get("busy") == "1"
     today = today_br()
     days = sorted({d for d in (parse_day(x) for x in request.form.get("days", "").split(",")) if d})
@@ -1406,6 +1542,17 @@ def admin_calendar_save(rid):
     except exc.IntegrityError:  # duas abas marcando o mesmo dia ao mesmo tempo
         db.session.rollback()
     return {"ok": True, "updated": r.calendar_updated_at and local_time(r.calendar_updated_at)}
+
+
+@app.route("/admin/rancho/<int:rid>/agenda/sincronizar", methods=["POST"])
+@panel_required
+def admin_calendar_sync(rid):
+    r = editable_rancho(rid)
+    if r.ical_url and sync_ical(r):
+        flash("Agenda atualizada agora com a agenda de origem.", "ok")
+    else:
+        flash(f"Não consegui ler a agenda de origem ({r.ical_error or 'sem link'}).", "error")
+    return redirect(url_for("admin_calendar", rid=r.id))
 
 
 @app.route("/admin/rancho/<int:rid>/aprovar", methods=["POST"])
