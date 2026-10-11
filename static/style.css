@@ -625,3 +625,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pcard-more summary { cursor: pointer; font-weight: 700; color: var(--rio-2); list-style: none; padding: 2px 0; }
 .pcard-more summary::-webkit-details-marker { display: none; }
 .pcard-more[open] summary { margin-bottom: 6px; }
+
+/* Aviso no topo (substitui o alert() do navegador na parte pública) */
+.toast {
+  position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); z-index: 80;
+  width: max-content; max-width: calc(100% - 32px); padding: 12px 18px; border-radius: 12px;
+  /* branco com faixa amarela: aparece bem por cima do cabeçalho verde */
+  background: var(--card); color: var(--ink); border-left: 5px solid var(--sol);
+  font-size: 15px; font-weight: 600; line-height: 1.4; text-align: left;
+  box-shadow: 0 14px 34px -10px rgba(0,0,0,.5); overflow-wrap: anywhere; cursor: pointer;
+  opacity: 0; transform: translate(-50%, -12px); pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }

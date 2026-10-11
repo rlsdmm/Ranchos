@@ -1,6 +1,40 @@
 (() => {
   'use strict';
 
+  // Aviso que aparece no topo e some sozinho, no lugar do alert() do navegador
+  // (que no celular trava a tela e dentro do Instagram/Facebook às vezes nem aparece)
+  let toastTimer;
+  function toast(msg, ms = 4000) {
+    let el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.className = 'toast';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.addEventListener('click', () => el.classList.remove('show'));
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    void el.offsetWidth; // aplica o estado escondido antes, para a entrada animar
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+  // Cópia sem a API nova (navegador antigo ou navegador embutido de app)
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { /* sem suporte */ }
+    ta.remove();
+    return ok;
+  }
+
   // Lista para o grupo: os ranchos salvos ficam no navegador de cada visitante
   // (sem login). O link mandado ao grupo leva os ranchos no endereço (/lista?r=a,b,c).
   const FAV_KEY = 'ranchos-favoritos';
@@ -35,7 +69,7 @@
     let favs = readFavs();
     const slug = b.dataset.fav;
     if (favs.includes(slug)) favs = favs.filter((s) => s !== slug);
-    else if (favs.length >= FAV_MAX) { alert(`A lista vai até ${FAV_MAX} ranchos. Tire algum antes de salvar outro.`); return; }
+    else if (favs.length >= FAV_MAX) { toast(`A lista vai até ${FAV_MAX} ranchos. Tire algum antes de salvar outro.`); return; }
     else {
       favs = [...favs, slug];
       countSave(slug);
@@ -62,8 +96,11 @@
   window.addEventListener('pageshow', syncFavs); // volta pelo botão "voltar" do celular
   document.querySelectorAll('[data-copy-text]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(btn.dataset.copyText); }
-      catch { prompt('Copie o link:', btn.dataset.copyText); }
+      const text = btn.dataset.copyText;
+      let ok = true;
+      try { await navigator.clipboard.writeText(text); }
+      catch { ok = legacyCopy(text); }
+      if (!ok) { toast(`Não deu para copiar sozinho. O link é: ${text}`, 10000); return; }
       const old = btn.textContent;
       btn.textContent = 'Link copiado';
       setTimeout(() => { btn.textContent = old; }, 1600);
@@ -236,7 +273,7 @@
       if (!start || end || iso < start) { start = iso; end = null; }
       else if (iso === start) { start = null; }
       else if (daysBetween(start, iso).some((d) => dayBtn(d)?.classList.contains('busy'))) {
-        alert('Tem dia ocupado no meio desse período. Escolha outras datas.');
+        toast('Tem dia ocupado no meio desse período. Escolha outras datas.');
         start = iso; end = null;
       } else { end = iso; }
       paint();
