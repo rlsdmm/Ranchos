@@ -20,6 +20,15 @@
     <ul class="pcard-photos">
       {% for ph in p.photos[1:7] %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
     </ul>
+    {% set rest = p.photos[7:] %}
+    {% if rest %}
+    <details class="pcard-more">
+      <summary>+{{ rest|length }} foto{{ 's' if rest|length > 1 }}</summary>
+      <ul class="pcard-photos">
+        {% for ph in rest %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
+      </ul>
+    </details>
+    {% endif %}
   {% endif %}
   <p class="pcard-price">{{ p.price_text or 'Valores a combinar' }}</p>
   {% if p.whatsapp_digits %}

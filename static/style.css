@@ -580,3 +580,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip-link { display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); font-size: 15px; font-weight: 600; text-decoration: none; color: inherit; }
 .chip-link.on { background: var(--rio); border-color: var(--rio); color: #fff; }
 .svc-join { margin-top: 28px; }
+.pcard-more summary { cursor: pointer; font-weight: 700; color: var(--rio-2); list-style: none; padding: 2px 0; }
+.pcard-more summary::-webkit-details-marker { display: none; }
+.pcard-more[open] summary { margin-bottom: 6px; }
