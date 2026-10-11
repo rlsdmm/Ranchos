@@ -94,6 +94,8 @@ AMENITIES = {
     "beach_tennis": ("Quadra de beach tennis", "🎾"),
     "parquinho": ("Parquinho infantil", "🎠"),
     "futebol": ("Campo de futebol", "⚽"),
+    "sinuca": ("Mesa de sinuca", "🎱"),
+    "bebedouro": ("Bebedouro", "🚰"),
 }
 # Comodidades que viram filtro na página inicial e linha na comparação da lista
 FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
@@ -148,6 +150,13 @@ NEW_DAYS = 30           # selo "Novo" nos ranchos que entraram há menos tempo q
 NEW_MAX = 3             # ...mas só nos mais recentes: com o site começando, todos seriam novos
 FRESH_AGENDA_DAYS = 30  # agenda mais velha que isso não aparece como "atualizada" no card
 
+# Cobrança dos donos: meses grátis no começo, depois mensal ou anual.
+TRIAL_MONTHS = 3
+PRICE_MONTH = "R$ 19,90"
+PRICE_YEAR = "R$ 200"
+BILLING_NOTICE_DAYS = 7  # o rancho entra na lista de cobrança do painel essa quantidade de dias antes de vencer
+PIX_KEY = os.environ.get("PIX_KEY", "")  # vai na mensagem de cobrança; vazio = mensagem sem Pix
+
 BOT_RE = re.compile(r"bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|curl|wget|python", re.I)
 
 
@@ -193,6 +202,8 @@ class Rancho(db.Model):
     pending = db.Column(db.Boolean, default=False)
     # Última vez que a agenda foi mexida. Vazio = rancho sem agenda (não mostra no site).
     calendar_updated_at = db.Column(db.DateTime)
+    # Até quando o anúncio está pago (ou no período grátis). Vazio = sem cobrança registrada.
+    paid_until = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
@@ -328,6 +339,7 @@ with app.app_context():
         ("rancho", "beer_fridges", "INTEGER DEFAULT 0"),
         ("event", "source", "VARCHAR(40) DEFAULT ''"),
         ("rancho", "calendar_updated_at", "TIMESTAMP"),
+        ("rancho", "paid_until", "DATE"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -608,6 +620,12 @@ def month_start(dt):
 def add_months(dt, n):
     y, m = dt.year + (dt.month - 1 + n) // 12, (dt.month - 1 + n) % 12 + 1
     return dt.replace(year=y, month=m)
+
+
+def months_later(d, n):
+    """Mesmo dia n meses depois; 31/01 + 1 mês = 28 ou 29/02."""
+    y, m = d.year + (d.month - 1 + n) // 12, (d.month - 1 + n) % 12 + 1
+    return date(y, m, min(d.day, calmod.monthrange(y, m)[1]))
 
 
 MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
@@ -1215,7 +1233,47 @@ def admin_home():
         "fav": sum(n for (_, k), n in c30.items() if k == "fav"),
     }
     return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals,
-                           sources=source_stats(since))
+                           sources=source_stats(since), billing=billing_rows(ranchos), today=today_br())
+
+
+def billing_rows(ranchos):
+    """Ranchos vencidos ou vencendo nos próximos dias, do que venceu há mais tempo para o mais novo,
+    cada um com a mensagem de cobrança pronta para mandar no WhatsApp do dono."""
+    today = today_br()
+    due = sorted((r for r in ranchos if not r.pending and r.paid_until
+                  and r.paid_until <= today + timedelta(days=BILLING_NOTICE_DAYS)),
+                 key=lambda r: r.paid_until)
+    if not due:
+        return []
+    c90 = counts_since(now_utc() - timedelta(days=90))
+    rows = []
+    for r in due:
+        days = (r.paid_until - today).days
+        contacts = c90.get((r.id, "whatsapp"), 0)
+        text = billing_text(r, days, contacts)
+        rows.append({
+            "r": r, "days": days, "contacts": contacts, "text": text,
+            "wa_link": f"https://wa.me/{r.whatsapp_digits}?text={quote(text)}" if r.whatsapp_digits else "",
+        })
+    return rows
+
+
+def billing_text(r, days, contacts):
+    first = (r.owner_name or "").split()[0] if r.owner_name else ""
+    when = r.paid_until.strftime("%d/%m")
+    lines = [f"Olá{(' ' + first) if first else ''}! Aqui é do {SITE_NAME}."]
+    if days >= 0:
+        lines.append(f"O anúncio do {r.name} está ativo até {when}.")
+    else:
+        lines.append(f"O anúncio do {r.name} venceu em {when}.")
+    if contacts:
+        lines.append(f"Nos últimos 3 meses, {contacts} {'pessoa clicou' if contacts == 1 else 'pessoas clicaram'} "
+                     f"para falar com você no WhatsApp pelo site.")
+    lines.append(f"Para continuar é {PRICE_MONTH} por mês ou {PRICE_YEAR} o ano todo.")
+    if PIX_KEY:
+        lines.append(f"Pix: {PIX_KEY}")
+    lines.append("Se não quiser continuar, é só avisar que eu tiro o anúncio, sem problema.")
+    return "\n".join(lines)
 
 
 def fill_rancho(r, form):
@@ -1248,6 +1306,7 @@ def fill_rancho(r, form):
     if is_admin():
         r.verified = bool(form.get("verified"))
         r.featured = bool(form.get("featured"))
+        r.paid_until = parse_day(form.get("paid_until"))
         oid = to_int(form.get("owner_id"))
         r.owner_id = oid if oid and db.session.get(Owner, oid) else None
     elif r.verified and old_digits and r.whatsapp_digits != old_digits:
@@ -1313,7 +1372,8 @@ def admin_edit(rid=None):
             flash("Como o WhatsApp mudou, o selo \"Verificado\" saiu até a gente conferir o número novo.", "error")
         return redirect(url_for("admin_edit", rid=r.id))
     owners = Owner.query.order_by(Owner.name, Owner.login).all() if is_admin() else []
-    return render_template("admin/edit.html", r=r, owners=owners)
+    return render_template("admin/edit.html", r=r, owners=owners,
+                           trial_end=months_later(today_br(), TRIAL_MONTHS))
 
 
 @app.route("/admin/rancho/<int:rid>/agenda")
@@ -1354,6 +1414,8 @@ def admin_approve(rid):
     r = db.session.get(Rancho, rid) or abort(404)
     r.pending = False
     r.active = True
+    if not r.paid_until:  # o período grátis conta a partir da publicação
+        r.paid_until = months_later(today_br(), TRIAL_MONTHS)
     db.session.commit()
     flash(f"{r.name} aprovado e publicado no site.", "ok")
     if request.form.get("back") == "edit":
@@ -1445,6 +1507,20 @@ def admin_delete(rid):
     bunny_delete(gone)
     flash(f"{r.name} excluído.", "ok")
     return redirect(url_for("admin_home"))
+
+
+@app.route("/admin/rancho/<int:rid>/pagamento", methods=["POST"])
+@admin_required
+def admin_payment(rid):
+    """Registra um pagamento: estende o vencimento em 1 mês ou 1 ano. Pagamento atrasado conta
+    a partir de hoje, para o dono não pagar pelos dias em que o anúncio ficou vencido."""
+    r = db.session.get(Rancho, rid) or abort(404)
+    months = {"mes": 1, "ano": 12}.get(request.form.get("plano")) or abort(400)
+    base = max(r.paid_until or today_br(), today_br())
+    r.paid_until = months_later(base, months)
+    db.session.commit()
+    flash(f"Pagamento registrado: {r.name} pago até {r.paid_until.strftime('%d/%m/%Y')}.", "ok")
+    return redirect(url_for("admin_home") + "#cobranca")
 
 
 @app.route("/admin/rancho/<int:rid>/alternar/<field>", methods=["POST"])

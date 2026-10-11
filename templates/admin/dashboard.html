@@ -27,6 +27,39 @@
 </section>
 {% endif %}
 
+{% if billing %}
+<section class="pending-box" id="cobranca">
+  <h2>Cobrança ({{ billing|length }})</h2>
+  <p class="muted small">Ranchos vencidos ou que vencem nos próximos 7 dias. Quando o dono pagar, registre aqui para mudar o vencimento.</p>
+  <ul class="leads">
+    {% for b in billing %}
+    <li class="lead">
+      <div>
+        <p class="strong">{{ b.r.name }}{% if b.r.owner_name %}, {{ b.r.owner_name }}{% endif %}</p>
+        <p class="small {{ 'danger' if b.days < 0 else 'muted' }}">
+          {% if b.days < 0 %}Venceu em {{ b.r.paid_until.strftime('%d/%m') }}, há {{ -b.days }} dia{{ 's' if b.days < -1 }}
+          {% elif b.days == 0 %}Vence hoje
+          {% else %}Vence em {{ b.r.paid_until.strftime('%d/%m') }}, daqui a {{ b.days }} dia{{ 's' if b.days > 1 }}{% endif %}
+          · {{ b.contacts }} contato{{ 's' if b.contacts != 1 }} no WhatsApp em 3 meses
+        </p>
+      </div>
+      <div class="lead-actions">
+        {% if b.wa_link %}<a class="btn btn-zap btn-sm" href="{{ b.wa_link }}" target="_blank" rel="noopener">Cobrar no WhatsApp</a>
+        {% else %}<a class="btn btn-outline btn-sm" href="{{ url_for('admin_edit', rid=b.r.id) }}">Sem WhatsApp: cadastrar</a>{% endif %}
+        {% for plano, label in [('mes', '+1 mês'), ('ano', '+1 ano')] %}
+        <form method="post" action="{{ url_for('admin_payment', rid=b.r.id) }}" data-confirm="Registrar pagamento de {{ label[1:] }} do {{ b.r.name }}?">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="plano" value="{{ plano }}">
+          <button class="btn btn-outline btn-sm">Pagou {{ label }}</button>
+        </form>
+        {% endfor %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <h1>Últimos 30 dias</h1>
 <div class="kpis">
   <div class="kpi"><strong>{{ totals.views }}</strong><span>visitas nos anúncios</span></div>
@@ -75,7 +108,7 @@
 {% if ranchos %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th class="num">♥ Salvaram</th><th>No site</th><th>Destaque</th><th>Verificado</th><th></th></tr></thead>
+  <thead><tr><th>Rancho</th><th class="num">Visitas</th><th class="num">WhatsApp</th><th class="num">♥ Salvaram</th><th>No site</th><th>Destaque</th><th>Verificado</th><th>Pago até</th><th></th></tr></thead>
   <tbody>
   {% for r in ranchos if not r.pending %}
     <tr class="{% if not r.active %}off{% endif %}">
@@ -94,6 +127,7 @@
         </form>
       </td>
       {% endfor %}
+      <td class="small {{ 'danger' if r.paid_until and r.paid_until < today }}">{{ r.paid_until.strftime('%d/%m/%Y') if r.paid_until else '—' }}</td>
       <td><div class="actions">
         <a href="{{ url_for('admin_calendar', rid=r.id) }}">Agenda</a>
         <a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>

@@ -98,6 +98,9 @@
       <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Aparece no site</label>
       <label class="check"><input type="checkbox" name="featured" {% if r and r.featured %}checked{% endif %}> Destaque (topo da lista)</label>
       <label class="check"><input type="checkbox" name="verified" {% if r and r.verified %}checked{% endif %}> Verificado (visitei e confirmei o dono)</label>
+      <label>Anúncio pago até <span class="muted">(ou fim do período grátis; vazio = sem cobrança)</span>
+        <input type="date" name="paid_until" value="{{ (r.paid_until.isoformat() if r.paid_until else '') if r else trial_end.isoformat() }}">
+      </label>
     {% else %}
       <label class="check"><input type="checkbox" name="active" {% if not r or r.active %}checked{% endif %}> Anúncio ativo <span class="muted">(desmarque para pausar, por exemplo em reforma)</span></label>
     {% endif %}

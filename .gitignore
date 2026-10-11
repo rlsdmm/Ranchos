@@ -7,3 +7,4 @@ instance/
 venv/
 firebase-debug.log
 .firebase/
+fotos/
