@@ -18,6 +18,7 @@ import hmac
 import io
 import os
 import re
+import random
 import secrets
 import time
 import unicodedata
@@ -1019,8 +1020,11 @@ def index():
 
     ranchos = public_ranchos().all()
     total = len(ranchos)
-    # Foto do topo: a do primeiro rancho na ordem de destaque (não muda com os filtros)
-    hero = next((r for r in default_order(ranchos) if r.cover), None)
+    # Foto do topo: capa de um rancho sorteado a cada visita. Só capas deitadas: o topo é largo,
+    # e foto em pé ficaria cortada. Sem nenhuma deitada, vale qualquer capa.
+    covers = [r for r in ranchos if r.cover]
+    wide = [r for r in covers if r.cover.width >= r.cover.height]
+    hero = random.choice(wide or covers) if covers else None
     if cap:
         ranchos = [r for r in ranchos if (r.capacity or 0) >= cap]
     if max_price:
