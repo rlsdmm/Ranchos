@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Quem somos | {{ SITE_NAME }}{% endblock %}
+{% block description %}Como funciona o {{ SITE_NAME }}: quem visita os ranchos, como o selo de verificado é dado, quem paga pelo site e como um anúncio entra e sai.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('about') }}">
+  <meta property="og:title" content="Quem somos | {{ SITE_NAME }}">
+  <meta property="og:type" content="website">
+{% endblock %}
+{% block content %}
+<article class="wrap page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Quem somos</nav>
+  <h1>Quem somos</h1>
+  <p class="intro">O {{ SITE_NAME }} é um catálogo de ranchos para alugar em {{ CITY_NAME }}, feito por gente da cidade.
+    O turista vê fotos reais, a agenda e o valor, e fala direto com o dono pelo WhatsApp.</p>
+  <p class="muted">Hoje são {{ n }} {{ 'rancho' if n == 1 else 'ranchos' }} no site{% if n_verified %}, {{ n_verified }} {{ 'visitado' if n_verified == 1 else 'visitados' }} pela nossa equipe{% endif %}.{% if updated %} Informações atualizadas {{ updated|ago }}.{% endif %}</p>
+
+  <h2>Para quem vai alugar</h2>
+  <ul class="page-list">
+    <li><strong>O site é grátis para o turista.</strong> Não cobramos taxa nem comissão sobre a reserva.</li>
+    <li><strong>Você negocia direto com o dono.</strong> Datas, valor e sinal são combinados entre vocês pelo WhatsApp. O site não recebe o pagamento da reserva e não intermedia a negociação.</li>
+    <li><strong>Agenda e preços vêm do dono.</strong> Ele atualiza pelo painel do site, e mostramos quando foi a última atualização. Confirme sempre as datas no WhatsApp.</li>
+  </ul>
+
+  <h2 id="verificacao">Como verificamos os ranchos</h2>
+  <p>O selo <span class="badge badge-ok">✓ Verificado</span> só aparece depois que alguém da nossa equipe vai até o rancho.
+    Na visita, a gente confere se o rancho existe e bate com as fotos, e confirma que o WhatsApp do anúncio é mesmo do dono.
+    A data da visita aparece no anúncio.</p>
+  <p>Se o dono trocar o número de WhatsApp pelo painel, o selo sai na hora e só volta depois que a gente confere o número novo.
+    É uma proteção contra golpe: ninguém consegue trocar o contato de um rancho verificado sem a gente saber.</p>
+  <p>Rancho sem o selo ainda não foi visitado. Isso não quer dizer que seja golpe, mas vale seguir o nosso
+    <a class="link" href="{{ url_for('safety_guide') }}">guia para alugar com segurança</a>.</p>
+
+  <h2>Como o site se mantém</h2>
+  <p>Quem paga é o dono do rancho: os 3 primeiros meses são grátis e depois o anúncio custa R$&nbsp;19,90 por mês ou R$&nbsp;200 por ano,
+    sem fidelidade. O valor é o mesmo para todos e não depende de quantas reservas o rancho fecha.</p>
+
+  <h2>Como um anúncio entra e sai</h2>
+  <ul class="page-list">
+    <li><strong>Entra</strong> quando o dono pede pela página <a class="link" href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>. A gente visita, tira as fotos e monta o anúncio.</li>
+    <li><strong>Muda</strong> quando o dono atualiza pelo painel (fotos, preços, regras e agenda) ou pede pra gente pelo WhatsApp.</li>
+    <li><strong>Sai</strong> quando o dono pede ou deixa de pagar. Anúncio com informação falsa ou reclamação séria é retirado.</li>
+  </ul>
+
+  {% if SITE_WHATSAPP %}
+  <h2>Fale com a gente</h2>
+  <p>Achou algum erro num anúncio ou quer anunciar? <a class="link" href="https://wa.me/{{ SITE_WHATSAPP }}" rel="nofollow">Chame no WhatsApp</a>.</p>
+  {% endif %}
+</article>
+{% endblock %}

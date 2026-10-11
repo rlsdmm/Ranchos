@@ -40,7 +40,7 @@
   <div class="gallery g-n{{ [r.photos|length, 5]|min }}" data-gallery>
     {% for p in r.photos %}
       <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
-        <img src="{{ p.url(('f' if loop.first else 't')) }}" alt="{{ r.name }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
+        <img src="{{ p.url(('f' if loop.first else 't')) }}" alt="{{ r.name }} em {{ CITY_NAME }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
       </button>
     {% endfor %}
     {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
@@ -114,6 +114,16 @@
       </section>
       {% endif %}
 
+      {% if faq %}
+      <section class="block faq">
+        <h2>Antes de reservar</h2>
+        {% for q, a in faq %}
+        <h3>{{ q }}</h3>
+        <p>{{ a }}</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+
       {% if providers %}
       <section class="block services">
         <h2>Cozinheira, faxina e roupa de cama</h2>
@@ -162,11 +172,11 @@
       {% if r.verified %}
       <div class="verified-note">
         <p><strong>✓ Rancho verificado</strong></p>
-        <p class="small">Nossa equipe visitou o rancho e confirmou o contato do dono. Mesmo assim, só pague o sinal com contrato e confira o nome no Pix.</p>
+        <p class="small">Nossa equipe visitou o rancho{% if r.verified_at %} em {{ (r.verified_at|local)[:10] }}{% endif %} e confirmou o contato do dono. <a class="link" href="{{ url_for('about') }}#verificacao">Como verificamos</a>. Mesmo assim, só pague o sinal com contrato e confira o nome no Pix.</p>
       </div>
       {% else %}
       <div class="verified-note warn">
-        <p class="small">Este rancho ainda não foi visitado pela nossa equipe. Antes de pagar qualquer sinal, peça contrato e confira o nome no Pix. <a class="link" href="{{ url_for('index') }}#seguranca">Veja as dicas</a>.</p>
+        <p class="small">Este rancho ainda não foi visitado pela nossa equipe. Antes de pagar qualquer sinal, peça contrato e confira o nome no Pix. <a class="link" href="{{ url_for('safety_guide') }}">Veja o guia</a>.</p>
       </div>
       {% endif %}
     </aside>

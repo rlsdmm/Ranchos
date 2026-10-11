@@ -82,7 +82,8 @@
   <div id="results" aria-live="polite">
   <div class="results-head">
     <h2>{% if filtering %}{{ ranchos|length }} de {{ total }} ranchos{% else %}{{ total }} {{ 'rancho' if total == 1 else 'ranchos' }} para alugar{% endif %}</h2>
-    {% if filtering %}<a class="link" href="{{ url_for('index') }}#ranchos">Limpar filtros</a>{% endif %}
+    {% if filtering %}<a class="link" href="{{ url_for('index') }}#ranchos">Limpar filtros</a>
+    {% elif updated %}<p class="muted small results-updated">Atualizado {{ updated|ago }}</p>{% endif %}
   </div>
 
   {% if ranchos %}
@@ -127,6 +128,7 @@
       <li><strong>Desconfie de preço muito abaixo dos outros</strong>, principalmente em feriado.</li>
       <li><strong>Peça um contrato simples</strong> com datas, valor, sinal e regras antes de pagar.</li>
       <li><strong>Confira o nome no Pix.</strong> Ele deve bater com o nome do dono ou do contrato.</li>
+      <li class="tips-more"><a class="link" href="{{ url_for('safety_guide') }}">Ver o guia completo para alugar com segurança</a></li>
     </ul>
   </div>
 </section>

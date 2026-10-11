@@ -638,3 +638,24 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* páginas de texto (Quem somos, guia de segurança) */
+.page { max-width: 760px; padding-bottom: 56px; }
+.page h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 850; font-stretch: 112%; letter-spacing: -0.02em; margin-bottom: 14px; }
+.page .intro { max-width: none; font-size: 19px; }
+.page h2 { font-size: 24px; font-weight: 800; font-stretch: 106%; margin: 34px 0 12px; scroll-margin-top: 16px; }
+.page-list { padding-left: 1.2em; margin: 0 0 12px; display: grid; gap: 10px; }
+.page-list ul { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.page-list.check { list-style: none; padding-left: 0; }
+.page-list.check > li { position: relative; padding-left: 30px; }
+.page-list.check > li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--rio-2); font-weight: 900; }
+.page-cta { margin-top: 32px; }
+
+/* perguntas e números calculados do cadastro */
+.faq h3 { font-size: 18px; font-weight: 750; margin: 18px 0 4px; }
+.faq h3:first-of-type { margin-top: 0; }
+.faq p { margin: 0; max-width: 68ch; }
+.cat-facts { max-width: 68ch; margin: 12px 0 0; font-size: 16px; }
+.results-updated { margin: 0; }
+.tips .tips-more { background: none; padding: 4px 0 0; }
+.tips .tips-more::before { display: none; }

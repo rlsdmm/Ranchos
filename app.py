@@ -123,7 +123,8 @@ CATEGORIES = {
         intro="Ranchos na beira d'água em {city}, para acordar com vista para o rio, nadar e ver o pôr do sol. "
               "Compare os ranchos e fale direto com o dono pelo WhatsApp."),
     "para-pesca": dict(
-        label="Para pesca", amenity="pesca", title="Ranchos para pesca",
+        label="Para pesca", amenity="pesca", title="Ranchos para pescaria",
+        h1="Ranchos para pescaria em {city}", seo_title="Ranchos para pescaria em {city}: píer, rampa e beira-rio",
         intro="Ranchos bons para pescaria em {city}. Antes de ir, confira as regras de pesca e os períodos de "
               "defeso da região. Veja fotos, estrutura e o valor do fim de semana de cada rancho."),
     "com-rampa-para-barco": dict(
@@ -205,6 +206,7 @@ class Rancho(db.Model):
     owner_name = db.Column(db.String(120), default="")
     owner_whatsapp = db.Column(db.String(30), default="")
     verified = db.Column(db.Boolean, default=False)
+    verified_at = db.Column(db.DateTime)  # quando o selo foi dado (visita da equipe)
     featured = db.Column(db.Boolean, default=False)
     active = db.Column(db.Boolean, default=True)
     # Conta de dono que pode editar o rancho. Rancho cadastrado pelo dono fica pendente
@@ -426,6 +428,7 @@ with app.app_context():
         ("rancho", "ical_synced_at", "TIMESTAMP"),
         ("rancho", "ical_error", "VARCHAR(200) DEFAULT ''"),
         ("event", "provider_id", "INTEGER REFERENCES provider(id) ON DELETE CASCADE"),
+        ("rancho", "verified_at", "TIMESTAMP"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -594,6 +597,15 @@ def public_ranchos():
     return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
 
 
+def set_verified(r, on):
+    """Liga ou desliga o selo. A data da visita aparece no anúncio."""
+    if on and not r.verified:
+        r.verified_at = now_utc()
+    elif not on:
+        r.verified_at = None
+    r.verified = on
+
+
 def new_rancho_ids():
     """Ids com selo "Novo". Calculado uma vez por requisição."""
     if "new_ids" not in g:
@@ -637,7 +649,7 @@ def log_event(rancho_id, kind, provider_id=None):
 # Origem das visitas
 # ---------------------------------------------------------------------------
 # Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
-LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services"}
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "about", "safety_guide"}
 # Site de onde veio (pelo Referer) -> nome da origem
 REFERRER_SOURCES = [
     (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
@@ -1043,7 +1055,8 @@ def index():
     filtering = bool(cap or max_price or wanted)
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
                            wanted=wanted, order=order, filtering=filtering, hero=hero,
-                           categories=categories_with_ranchos(), holiday=holiday_block())
+                           categories=categories_with_ranchos(), holiday=holiday_block(),
+                           updated=last_update(public_ranchos().all()), lds=[site_ld()])
 
 
 def holiday_block():
@@ -1062,6 +1075,137 @@ def holiday_block():
     return h
 
 
+# ---------------------------------------------------------------------------
+# Respostas e números tirados do cadastro. Google e IAs (ChatGPT, Gemini...) preferem
+# resposta direta e dado que só existe aqui a texto genérico sobre a cidade.
+# ---------------------------------------------------------------------------
+def plural(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def join_pt(items):
+    items = list(items)
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " e " + items[-1]
+
+
+def last_update(ranchos):
+    """Última vez que algum desses ranchos mudou (anúncio ou agenda)."""
+    ds = [d for r in ranchos for d in (r.updated_at, r.calendar_updated_at) if d]
+    return max(ds) if ds else None
+
+
+def price_range(ranchos):
+    ps = sorted(r.price_weekend for r in ranchos if r.price_weekend)
+    if not ps:
+        return ""
+    return brl(ps[0]) if ps[0] == ps[-1] else f"de {brl(ps[0])} a {brl(ps[-1])}"
+
+
+def category_facts(cat, ranchos):
+    """Frase-resumo e perguntas da página por tipo: ([fatos], [(pergunta, resposta)])."""
+    city, n = CITY_NAME, len(ranchos)
+    group = cat["title"][0].lower() + cat["title"][1:]  # "ranchos com piscina"
+    facts, faq = [], []
+    caps = sorted(r.capacity for r in ranchos if r.capacity)
+    if caps:
+        facts.append(f"recebem de {caps[0]} a {caps[-1]} pessoas" if caps[0] != caps[-1] else f"recebem até {caps[0]} pessoas")
+    pr = price_range(ranchos)
+    if pr:
+        priced = sum(1 for r in ranchos if r.price_weekend)
+        facts.append(f"o fim de semana sai {pr}" + (f" (nos {priced} que informam o valor)" if priced < n else ""))
+        faq.append((f"Quanto custa o fim de semana nos {group} de {city}?",
+                    f"No site, o fim de semana sai {pr}"
+                    + (f", segundo os {priced} ranchos que informam o valor" if priced < n else "")
+                    + ". Feriado costuma ter pacote próprio, que aparece em cada anúncio."))
+    for key in ("beira_rio", "rampa", "piscina", "pet"):
+        if key != cat.get("amenity"):
+            k = sum(1 for r in ranchos if key in r.amenity_list)
+            if k:
+                facts.append(f"{k} {'tem' if k == 1 else 'têm'} {AMENITIES[key][0].lower()}" if key in ("piscina", "rampa")
+                             else f"{k} {'fica' if k == 1 else 'ficam'} na beira do rio" if key == "beira_rio"
+                             else f"{k} {'aceita' if k == 1 else 'aceitam'} pet")
+    if caps and n > 1:
+        big = [r for r in ranchos if r.capacity == caps[-1]]
+        faq.append((f"Qual dos {group} cabe mais gente?",
+                    f"{join_pt(r.name for r in big)}, para até {caps[-1]} pessoas."))
+    ver = [r for r in ranchos if r.verified]
+    faq.append((f"Quais {group} foram visitados pela equipe do site?",
+                f"{join_pt(r.name for r in ver)}. {'Ele tem' if len(ver) == 1 else 'Eles têm'} o selo ✓ Verificado: visitamos o local e confirmamos o contato do dono."
+                if ver else "Nenhum ainda. Antes de pagar qualquer sinal, siga o nosso guia para alugar com segurança."))
+    head = f"{plural(n, 'rancho', 'ranchos')} no site"
+    return ([head] + facts), faq
+
+
+def rancho_faq(r):
+    """Perguntas de quem vai alugar, respondidas com o que o dono cadastrou.
+    Só entra pergunta com resposta conhecida: comodidade não marcada não quer dizer "não"."""
+    a, q = set(r.amenity_list), []
+    dono = r.owner_name.split()[0] if r.owner_name else "o dono"
+    if r.capacity:
+        rooms = f", em {plural(r.bedrooms, 'quarto', 'quartos')}" if r.bedrooms else ""
+        beds = f" Camas: {r.beds}." if r.beds else ""
+        q.append((f"Quantas pessoas cabem no {r.name}?", f"Até {r.capacity} pessoas{rooms}.{beds}"))
+    prices = []
+    if r.price_weekend:
+        prices.append(f"o fim de semana sai por {brl(r.price_weekend)}")
+    if r.price_night:
+        prices.append(f"a diária avulsa por {brl(r.price_night)}")
+    if prices or r.price_holiday:
+        txt = ("Pelo anúncio, " + " e ".join(prices) + ". ") if prices else ""
+        txt += f"Feriados: {r.price_holiday}." if r.price_holiday else "O valor de feriado é combinado com o dono."
+        q.append((f"Quanto custa alugar o {r.name}?", txt))
+    water = [t for k, t in (("beira_rio", "fica na beira do rio"), ("rampa", "tem rampa para barco e jet ski"),
+                            ("pesca", "é bom para pesca")) if k in a]
+    if water:
+        q.append(("Fica na beira do rio? Dá para colocar o barco?", f"Sim: o rancho {join_pt(water)}."))
+    if "pet" in a:
+        q.append(("Aceita cachorro?", "Sim, o rancho aceita pet. Avise o dono antes sobre o seu."))
+    if r.internet or "wifi" in a:
+        q.append(("Tem internet?", f"Sim: {r.internet}." if r.internet else "Sim, tem Wi-Fi."))
+    if "roupa_cama" in a:
+        q.append(("Precisa levar roupa de cama?", "Não, a roupa de cama está inclusa."))
+    if r.checkin or r.checkout:
+        parts = ([f"entrada a partir das {r.checkin}"] if r.checkin else []) + ([f"saída até as {r.checkout}"] if r.checkout else [])
+        q.append(("Qual o horário de entrada e saída?", join_pt(parts).capitalize() + "."))
+    if (r.min_nights or 1) > 1:
+        q.append(("Tem mínimo de diárias?", f"Sim, {r.min_nights} diárias."))
+    q.append(("Como reservar?", f"Fale direto com {dono} pelo WhatsApp, no botão desta página. Datas, valor e sinal "
+                                "são combinados com o dono, sem intermediário e sem taxa do site. Antes de pagar o sinal, "
+                                "peça um contrato simples e confira se o nome no Pix é o do dono."))
+    if r.verified:
+        when = f" em {r.verified_at.replace(tzinfo=timezone.utc).astimezone(BR_TZ):%d/%m/%Y}" if r.verified_at else ""
+        q.append(("O rancho é confiável?", f"A equipe do site visitou o rancho{when} e confirmou o contato do dono."))
+    return q
+
+
+def faq_ld(faq):
+    return {"@context": "https://schema.org", "@type": "FAQPage",
+            "mainEntity": [{"@type": "Question", "name": qq, "acceptedAnswer": {"@type": "Answer", "text": aa}}
+                           for qq, aa in faq]}
+
+
+def breadcrumb_ld(*items):
+    """items: (nome, caminho). O último é a página atual."""
+    base = site_url()
+    return {"@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": [{"@type": "ListItem", "position": i, "name": n, "item": base + path}
+                                for i, (n, path) in enumerate(items, 1)]}
+
+
+def site_ld():
+    base = site_url()
+    org = {"@type": "Organization", "@id": f"{base}/#org", "name": SITE_NAME, "url": f"{base}/",
+           "description": f"Catálogo de ranchos para alugar em {CITY_NAME}, com ranchos visitados pela equipe "
+                          "e contato direto com o dono.",
+           "areaServed": {"@type": "City", "name": CITY_NAME}}
+    if SITE_WHATSAPP:
+        org["contactPoint"] = {"@type": "ContactPoint", "telephone": f"+{SITE_WHATSAPP}",
+                               "contactType": "customer support", "availableLanguage": "Portuguese"}
+    return {"@context": "https://schema.org", "@graph": [
+        org, {"@type": "WebSite", "@id": f"{base}/#site", "name": SITE_NAME, "url": f"{base}/",
+              "inLanguage": "pt-BR", "publisher": {"@id": f"{base}/#org"}}]}
+
+
 @app.route("/ranchos/<slug>")
 def category(slug):
     cat = CATEGORIES.get(slug) or abort(404)
@@ -1070,8 +1214,27 @@ def category(slug):
     if not ranchos:
         abort(404)
     others = [c for c in categories_with_ranchos(everyone) if c[0] != slug]
+    facts, faq = category_facts(cat, ranchos)
+    h1 = cat.get("h1", "{title} para alugar em {city}").format(title=cat["title"], city=CITY_NAME)
+    seo_title = cat.get("seo_title", "{title} para alugar em {city}").format(title=cat["title"], city=CITY_NAME)
+    lds = [breadcrumb_ld(("Ranchos", "/"), (cat["title"], f"/ranchos/{slug}")), faq_ld(faq)]
     return render_template("category.html", slug=slug, cat=cat, ranchos=ranchos, others=others,
-                           intro=cat["intro"].format(city=CITY_NAME))
+                           intro=cat["intro"].format(city=CITY_NAME), h1=h1, seo_title=seo_title,
+                           facts=facts, faq=faq, rows=compare_rows(ranchos) if len(ranchos) > 1 else [],
+                           updated=last_update(ranchos), lds=lds)
+
+
+@app.route("/sobre")
+def about():
+    ranchos = public_ranchos().all()
+    return render_template("sobre.html", n=len(ranchos), n_verified=sum(1 for r in ranchos if r.verified),
+                           updated=last_update(ranchos), lds=[site_ld()])
+
+
+@app.route("/como-alugar-com-seguranca")
+def safety_guide():
+    lds = [breadcrumb_ld(("Ranchos", "/"), ("Como alugar com segurança", "/como-alugar-com-seguranca"))]
+    return render_template("seguranca.html", lds=lds)
 
 
 def compare_rows(ranchos):
@@ -1159,8 +1322,16 @@ def rancho(slug):
         "amenityFeature": [{"@type": "LocationFeatureSpecification", "name": AMENITIES[a][0], "value": True}
                            for a in r.amenity_list],
     }
+    if "pet" in r.amenity_list:
+        ld["petsAllowed"] = True
+    if r.checkin:
+        ld["checkinTime"] = r.checkin
+    if r.checkout:
+        ld["checkoutTime"] = r.checkout
+    faq = rancho_faq(r)
+    lds = [breadcrumb_ld(("Ranchos", "/"), (r.name, f"/rancho/{r.slug}")), faq_ld(faq)]
     months = calendar_months(busy_set(r)) if r.calendar_updated_at else None
-    return render_template("rancho.html", r=r, others=others, ld=ld, months=months,
+    return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
                            providers=public_providers()[:3])
 
 
@@ -1313,7 +1484,8 @@ def robots():
 @app.route("/sitemap.xml")
 def sitemap():
     base = site_url()
-    urls = [(f"{base}/", None), (f"{base}/anuncie", None)]
+    urls = [(f"{base}/", None), (f"{base}/anuncie", None), (f"{base}/sobre", None),
+            (f"{base}/como-alugar-com-seguranca", None)]
     ranchos = public_ranchos().all()
     for slug, _, _ in categories_with_ranchos(ranchos):
         urls.append((f"{base}/ranchos/{slug}", None))
@@ -1563,7 +1735,7 @@ def fill_rancho(r, form):
     r.owner_whatsapp = form.get("owner_whatsapp", "").strip()[:30]
     r.active = bool(form.get("active"))
     if is_admin():
-        r.verified = bool(form.get("verified"))
+        set_verified(r, bool(form.get("verified")))
         r.featured = bool(form.get("featured"))
         r.paid_until = parse_day(form.get("paid_until"))
         ical = form.get("ical_url", "").strip()[:500]
@@ -1573,7 +1745,7 @@ def fill_rancho(r, form):
         r.owner_id = oid if oid and db.session.get(Owner, oid) else None
     elif r.verified and old_digits and r.whatsapp_digits != old_digits:
         # Conta invadida poderia trocar o número por um de golpista: o selo sai até o admin conferir.
-        r.verified = False
+        set_verified(r, False)
         return True
     return False
 
@@ -1893,7 +2065,10 @@ def admin_toggle(rid, field):
     if field not in ("active", "featured", "verified"):
         abort(400)
     r = db.session.get(Rancho, rid) or abort(404)
-    setattr(r, field, not getattr(r, field))
+    if field == "verified":
+        set_verified(r, not r.verified)
+    else:
+        setattr(r, field, not getattr(r, field))
     db.session.commit()
     return redirect(url_for("admin_home"))
 

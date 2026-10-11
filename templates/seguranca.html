@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Como alugar rancho em {{ CITY_NAME }} sem cair em golpe | {{ SITE_NAME }}{% endblock %}
+{% block description %}Checklist para alugar rancho em {{ CITY_NAME }} com segurança: como conferir o dono, o que pôr no contrato, como pagar o sinal no Pix e o que fazer se cair em golpe.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('safety_guide') }}">
+  <meta property="og:title" content="Como alugar rancho sem cair em golpe">
+  <meta property="og:description" content="Checklist antes de pagar o sinal: dono, contrato, Pix e o que fazer se der problema.">
+  <meta property="og:type" content="article">
+{% endblock %}
+{% block content %}
+<article class="wrap page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Como alugar com segurança</nav>
+  <h1>Como alugar rancho em {{ CITY_NAME }} sem cair em golpe</h1>
+  <p class="intro">O golpe mais comum no aluguel de temporada é simples: alguém copia as fotos de um rancho de verdade,
+    anuncia por um preço bom, pede o sinal no Pix e some. Perto de feriado, quando todo mundo corre atrás de vaga, acontece ainda mais.
+    Seguindo os passos abaixo, fica bem difícil cair.</p>
+
+  <h2>1. Antes de chamar o dono</h2>
+  <ul class="page-list check">
+    <li><strong>Prefira ranchos com o selo <span class="badge badge-ok">✓ Verificado</span>.</strong> A nossa equipe visitou o local e confirmou o WhatsApp do dono. <a class="link" href="{{ url_for('about') }}#verificacao">Veja como verificamos</a>.</li>
+    <li><strong>Desconfie de preço muito abaixo dos outros</strong>, principalmente em feriado. Compare com ranchos parecidos.</li>
+    <li><strong>Procure as fotos na internet.</strong> No celular, use o Google Lens numa foto do anúncio: se ela aparece em outro rancho ou outra cidade, é sinal de alerta.</li>
+    <li><strong>Confira o endereço no mapa.</strong> Rancho de verdade tem localização. Se o dono não quer dizer onde fica, desconfie.</li>
+  </ul>
+
+  <h2>2. Na conversa com o dono</h2>
+  <ul class="page-list check">
+    <li><strong>Peça uma chamada de vídeo</strong> mostrando o rancho, ou um vídeo gravado na hora. Golpista não está no rancho.</li>
+    <li><strong>Pergunte detalhes</strong>: quantas camas, se tem roupa de cama, horário de entrada e saída, regras de som e de pet. Quem é dono responde sem enrolar.</li>
+    <li><strong>Desconfie de pressa</strong>: "tem outra família querendo, paga agora" é a frase mais usada em golpe.</li>
+  </ul>
+
+  <h2>3. Antes de pagar o sinal</h2>
+  <ul class="page-list check">
+    <li><strong>Faça um contrato simples</strong>, mesmo pelo WhatsApp, com:
+      <ul>
+        <li>nome completo e CPF do dono e de quem aluga;</li>
+        <li>endereço do rancho;</li>
+        <li>datas e horários de entrada e saída;</li>
+        <li>valor total, valor do sinal e quando paga o resto;</li>
+        <li>quantas pessoas, regras da casa e o que acontece se alguém cancelar.</li>
+      </ul>
+    </li>
+    <li><strong>Confira o nome no Pix</strong> antes de confirmar. Ele tem que ser o do dono ou o que está no contrato. Nome de outra pessoa ou de empresa estranha: pare e pergunte.</li>
+    <li><strong>Pague só o sinal</strong> e deixe o restante para a chegada ou para perto da data.</li>
+    <li><strong>Guarde os comprovantes</strong> e a conversa inteira.</li>
+  </ul>
+
+  <h2>4. Na chegada</h2>
+  <ul class="page-list check">
+    <li><strong>Confira se o rancho bate</strong> com as fotos e com o contrato.</li>
+    <li><strong>Tire fotos</strong> de como encontrou a casa. Ajuda se houver discussão sobre algum estrago na saída.</li>
+  </ul>
+
+  <h2>Se cair em golpe</h2>
+  <ul class="page-list">
+    <li><strong>Avise o seu banco na hora</strong> e peça a devolução pelo Mecanismo Especial de Devolução (MED) do Pix. Quanto mais rápido, maior a chance de recuperar o dinheiro.</li>
+    <li><strong>Faça um boletim de ocorrência</strong>, que dá para registrar pela internet na delegacia online do seu estado.</li>
+    <li><strong>Denuncie o perfil</strong> no site ou na rede onde viu o anúncio.</li>
+    {% if SITE_WHATSAPP %}<li><strong>Se o anúncio estava aqui, <a class="link" href="https://wa.me/{{ SITE_WHATSAPP }}" rel="nofollow">avise a gente</a></strong>: o rancho sai do ar na hora.</li>{% endif %}
+  </ul>
+
+  <p class="page-cta"><a class="btn btn-dark" href="{{ url_for('index') }}#ranchos">Ver ranchos para alugar</a></p>
+</article>
+{% endblock %}

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_card.html" import card with context %}
-{% block title %}{{ cat.title }} para alugar em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block title %}{{ seo_title }} | {{ SITE_NAME }}{% endblock %}
 {% block description %}{{ ranchos|length }} {{ cat.title|lower }} para alugar em {{ CITY_NAME }}. Fotos reais, valor do fim de semana e contato direto com o dono pelo WhatsApp.{% endblock %}
 {% block meta %}
   <link rel="canonical" href="{{ site_url() }}{{ url_for('category', slug=slug) }}">
-  <meta property="og:title" content="{{ cat.title }} em {{ CITY_NAME }}">
+  <meta property="og:title" content="{{ h1 }}">
   <meta property="og:description" content="{{ intro }}">
   <meta property="og:type" content="website">
   {% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
@@ -12,8 +12,11 @@
 {% block content %}
 <section class="wrap cat-page">
   <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › {{ cat.label }}</nav>
-  <h1>{{ cat.title }} para alugar em {{ CITY_NAME }}</h1>
+  <h1>{{ h1 }}</h1>
   <p class="cat-intro">{{ intro }}</p>
+  {# Números do próprio catálogo: é o que faz o Google e as IAs citarem a página #}
+  <p class="cat-facts">{{ facts[0] }}{% if facts|length > 1 %}: {{ facts[1:]|join('; ') }}{% endif %}.
+    {% if updated %}<span class="muted">Dados atualizados {{ updated|ago }}.</span>{% endif %}</p>
 
   <div class="results-head">
     <h2>{{ ranchos|length }} {{ 'rancho' if ranchos|length == 1 else 'ranchos' }}</h2>
@@ -22,6 +25,48 @@
   <ul class="grid">
     {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
   </ul>
+
+  {% if rows %}
+  <section class="block">
+    <h2>Compare lado a lado</h2>
+    <p class="muted small compare-legend"><span class="best-dot"></span> Em verde, o melhor de cada item.<span class="swipe-hint"> ↔ Arraste a tabela para ver todos.</span></p>
+    <div class="table-wrap compare">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="rl"></th>
+            {% for r in ranchos %}
+            <th class="rh">
+              <a href="{{ url_for('rancho', slug=r.slug) }}">
+                {% if r.cover %}<img src="{{ r.cover.url('t') }}" alt="" loading="lazy" width="240" height="160">{% endif %}
+                <span>{{ r.name }}</span>
+              </a>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for label, cells in rows %}
+          <tr>
+            <th class="rl">{{ label }}</th>
+            {% for value, best in cells %}<td class="{{ 'best' if best }}{{ ' yesno' if value in ('✓', '—') }}">{{ value }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if faq %}
+  <section class="block faq">
+    <h2>Perguntas frequentes</h2>
+    {% for q, a in faq %}
+    <h3>{{ q }}</h3>
+    <p>{{ a }}</p>
+    {% endfor %}
+  </section>
+  {% endif %}
 
   {% if others %}
   <nav class="cat-links" aria-label="Outros tipos de rancho">
