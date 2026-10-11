@@ -1515,7 +1515,7 @@ def fill_rancho(r, form):
     r.name = form.get("name", "").strip()[:120] or "Sem nome"
     r.region = form.get("region", "").strip()[:120]
     r.summary = form.get("summary", "").strip()[:200]
-    r.description = form.get("description", "").strip()
+    r.description = form.get("description", "").replace("\r\n", "\n").strip()  # o navegador manda \r\n
     r.capacity = to_int(form.get("capacity"))
     r.bedrooms = to_int(form.get("bedrooms"))
     r.bathrooms = to_int(form.get("bathrooms"))
@@ -1809,7 +1809,7 @@ def admin_provider(pid=None):
         p.name = f.get("name", "").strip()[:120] or "Sem nome"
         p.services = ",".join(k for k in f.getlist("services") if k in SERVICES)
         p.summary = f.get("summary", "").strip()[:200]
-        p.description = f.get("description", "").strip()
+        p.description = f.get("description", "").replace("\r\n", "\n").strip()
         p.price_text = f.get("price_text", "").strip()[:160]
         p.whatsapp = f.get("whatsapp", "").strip()[:30]
         p.active = bool(f.get("active"))

@@ -60,7 +60,7 @@
       {% if r.description %}
       <section class="block">
         <h2>Sobre o rancho</h2>
-        {% for para in r.description.split('\n\n') %}<p>{{ para|replace('\n', ' ') }}</p>{% endfor %}
+        {% for para in r.description.replace('\r\n', '\n').split('\n\n') %}<p>{{ para|replace('\n', ' ') }}</p>{% endfor %}
       </section>
       {% endif %}
 
