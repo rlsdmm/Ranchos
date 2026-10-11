@@ -11,7 +11,9 @@
 {% block content %}
 <section class="hero{{ ' has-photo' if hero }}"{% if hero %} style="--hero-img: url('{{ hero.cover.url() }}')"{% endif %}>
   <div class="wrap">
-    <h1 class="hero-title">Ranchos em<br>{{ CITY_NAME }}</h1>
+    {# O h1 fica com a busca do Google; a frase grande é só para quem chega #}
+    <h1 class="hero-kicker">Ranchos para alugar em {{ CITY_NAME }}</h1>
+    <p class="hero-title">Fim de semana na beira do rio</p>
     <p class="hero-sub">Escolha o rancho, veja fotos reais e fale direto com o dono pelo WhatsApp.</p>
     <ul class="hero-trust">
       <li>Ranchos verificados</li>
