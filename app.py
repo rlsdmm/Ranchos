@@ -1020,11 +1020,10 @@ def index():
 
     ranchos = public_ranchos().all()
     total = len(ranchos)
-    # Foto do topo: capa de um rancho sorteado a cada visita. Só capas deitadas: o topo é largo,
-    # e foto em pé ficaria cortada. Sem nenhuma deitada, vale qualquer capa.
+    # Foto do topo: capa de um rancho sorteado a cada visita. Foto em pé também entra: com o
+    # verde por cima o corte fica bom, e no celular o topo é alto e ela encaixa melhor.
     covers = [r for r in ranchos if r.cover]
-    wide = [r for r in covers if r.cover.width >= r.cover.height]
-    hero = random.choice(wide or covers) if covers else None
+    hero = random.choice(covers) if covers else None
     if cap:
         ranchos = [r for r in ranchos if (r.capacity or 0) >= cap]
     if max_price:
