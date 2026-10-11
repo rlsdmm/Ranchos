@@ -1,0 +1,29 @@
+{# Card de profissional (cozinheira, faxina...) na página /servicos e na página do rancho. #}
+{% macro provider_card(p, rancho=None, full=True) %}
+<li class="pcard">
+  <div class="pcard-head">
+    {% if p.cover %}
+      <img class="pcard-avatar" src="{{ p.cover.url('t') }}" alt="{{ p.name }}" loading="lazy" width="72" height="72">
+    {% else %}
+      <div class="pcard-avatar noimg" aria-hidden="true">{{ SERVICES[p.service_list[0]][1] if p.service_list else '🙂' }}</div>
+    {% endif %}
+    <div>
+      <h3>{{ p.name }}</h3>
+      <p class="pcard-tags">{% for k in p.service_list %}<span>{{ SERVICES[k][1] }} {{ SERVICES[k][0] }}</span>{% endfor %}</p>
+    </div>
+  </div>
+  {% if p.summary %}<p class="pcard-sum">{{ p.summary }}</p>{% endif %}
+  {% if full and p.description %}
+    <div class="pcard-desc">{% for para in p.description.split('\n') if para.strip() %}<p>{{ para }}</p>{% endfor %}</div>
+  {% endif %}
+  {% if full and p.photos|length > 1 %}
+    <ul class="pcard-photos">
+      {% for ph in p.photos[1:7] %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
+    </ul>
+  {% endif %}
+  <p class="pcard-price">{{ p.price_text or 'Valores a combinar' }}</p>
+  {% if p.whatsapp_digits %}
+  <a class="btn btn-zap" href="{{ url_for('provider_whatsapp', slug=p.slug, rancho=rancho.slug if rancho else None) }}" rel="nofollow">Chamar {{ p.name.split()[0] }} no WhatsApp</a>
+  {% endif %}
+</li>
+{% endmacro %}

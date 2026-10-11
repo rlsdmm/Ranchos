@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_calendar.html" import calendar %}
+{% from "_provider_card.html" import provider_card with context %}
 {% block title %}{{ r.name }}{% if r.region %}, {{ r.region }}{% endif %} | Rancho para alugar em {{ CITY_NAME }}{% endblock %}
 {% block description %}{{ r.summary or r.name }}{% if r.capacity %} Até {{ r.capacity }} pessoas.{% endif %}{% if r.price_weekend %} Fim de semana por {{ brl(r.price_weekend) }}.{% endif %} Fale direto com o dono pelo WhatsApp.{% endblock %}
 {% block body_class %}has-bottombar{% endblock %}
@@ -110,7 +111,16 @@
       </section>
       {% endif %}
 
-      {% if SITE_WHATSAPP %}
+      {% if providers %}
+      <section class="block services">
+        <h2>Cozinheira, faxina e roupa de cama</h2>
+        <p class="muted">Quer só aproveitar? Fale direto com quem atende nos ranchos da cidade.</p>
+        <ul class="pgrid pgrid-compact">
+          {% for p in providers %}{{ provider_card(p, r, full=False) }}{% endfor %}
+        </ul>
+        <a class="link" href="{{ url_for('services', rancho=r.slug) }}">Ver todos os serviços</a>
+      </section>
+      {% elif SITE_WHATSAPP %}
       <section class="block services">
         <h2>Cozinheira ou faxina para sua estadia</h2>
         <p class="muted">Quer só aproveitar? A gente indica cozinheira para o fim de semana e faxina na saída.</p>

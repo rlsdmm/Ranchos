@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -20,6 +20,7 @@
       <nav class="topnav">
         <a href="{{ url_for('index') }}#ranchos">Ranchos</a>
         <a href="{{ url_for('index') }}#seguranca">Como alugar com segurança</a>
+        <a href="{{ url_for('services') }}">Cozinheira e faxina</a>
         <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
       </nav>
     </div>
@@ -43,6 +44,7 @@
       </div>
       <div class="footer-links">
         <a href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
+        <a href="{{ url_for('services') }}">Cozinheira, faxina e roupa de cama</a>
         <a href="{{ url_for('index') }}#seguranca">Dicas contra golpes</a>
         {% if SITE_WHATSAPP %}<a href="https://wa.me/{{ SITE_WHATSAPP }}" rel="nofollow">Fale com a gente</a>{% endif %}
       </div>

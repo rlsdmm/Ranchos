@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_provider_card.html" import provider_card with context %}
+{% block title %}Cozinheira, faxina e roupa de cama para ranchos em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}Cozinheira, churrasqueiro, confeitaria, faxina e aluguel de roupa de cama para a sua estadia em ranchos de {{ CITY_NAME }}. Fale direto com cada profissional pelo WhatsApp.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('services') }}">
+  <meta property="og:title" content="Serviços para a sua estadia em {{ CITY_NAME }}">
+  <meta property="og:type" content="website">
+{% endblock %}
+{% block content %}
+<section class="wrap cat-page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Serviços</nav>
+  <h1>Serviços para a sua estadia</h1>
+  <p class="cat-intro">Quer só aproveitar o rancho? Cozinheira, faxina, confeitaria e roupa de cama em {{ CITY_NAME }}.
+    Você combina datas e valores direto com cada profissional pelo WhatsApp{% if rancho %}, e a mensagem já avisa que você vai ficar no {{ rancho.name }}{% endif %}.</p>
+
+  <nav class="chips svc-filter" aria-label="Tipo de serviço">
+    <a class="chip-link {{ 'on' if not wanted }}" href="{{ url_for('services', rancho=rancho.slug if rancho else None) }}">Todos</a>
+    {% for k, (label, icon) in SERVICES.items() %}
+      <a class="chip-link {{ 'on' if wanted == k }}" href="{{ url_for('services', tipo=k, rancho=rancho.slug if rancho else None) }}">{{ icon }} {{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if providers %}
+  <ul class="pgrid">
+    {% for p in providers %}{{ provider_card(p, rancho) }}{% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p>Ainda não tem ninguém anunciando {{ SERVICES[wanted][0]|lower if wanted else 'serviços' }} por aqui.</p>
+    {% if SITE_WHATSAPP %}<a class="btn btn-outline" href="{{ url_for('servicos_whatsapp', rancho=rancho.slug if rancho else None) }}" rel="nofollow">Pedir indicação pra gente</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if SITE_WHATSAPP %}
+  <p class="muted small svc-join">Você trabalha com isso em {{ CITY_NAME }}? <a class="link" href="https://wa.me/{{ SITE_WHATSAPP }}?text={{ ('Olá! Quero anunciar meus serviços no ' ~ SITE_NAME ~ '.')|urlencode }}" rel="nofollow">Anuncie aqui</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}

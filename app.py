@@ -97,6 +97,15 @@ AMENITIES = {
     "sinuca": ("Mesa de sinuca", "🎱"),
     "bebedouro": ("Bebedouro", "🚰"),
 }
+# Serviços que os profissionais anunciam (página /servicos e bloco na página do rancho)
+SERVICES = {
+    "cozinheira": ("Cozinheira", "👩‍🍳"),
+    "churrasqueiro": ("Churrasqueiro", "🍖"),
+    "confeitaria": ("Confeitaria", "🎂"),
+    "faxina": ("Faxina", "🧹"),
+    "roupa_cama": ("Aluguel de roupa de cama", "🛏️"),
+}
+
 # Comodidades que viram filtro na página inicial e linha na comparação da lista
 FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
                     "beach_tennis", "parquinho", "futebol"]
@@ -306,9 +315,61 @@ class Photo(db.Model):
         return site_url() + path if absolute else path
 
 
+class Provider(db.Model):
+    """Profissional que atende nos ranchos (cozinheira, faxina...). O turista fala direto com ela."""
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    services = db.Column(db.String(200), default="")      # chaves de SERVICES separadas por vírgula
+    summary = db.Column(db.String(200), default="")       # frase curta do card
+    description = db.Column(db.Text, default="")
+    price_text = db.Column(db.String(160), default="")    # vazio = a combinar
+    whatsapp = db.Column(db.String(30), default="")
+    active = db.Column(db.Boolean, default=True)
+    paid_until = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
+    photos = db.relationship("ProviderPhoto", order_by="ProviderPhoto.position",
+                             cascade="all, delete-orphan", lazy="selectin")
+
+    @property
+    def service_list(self):
+        return [k for k in (self.services or "").split(",") if k in SERVICES]
+
+    @property
+    def whatsapp_digits(self):
+        d = re.sub(r"\D", "", self.whatsapp or "")
+        return "55" + d if d and not d.startswith("55") else d
+
+    @property
+    def cover(self):
+        return self.photos[0] if self.photos else None
+
+
+class ProviderPhoto(db.Model):
+    """Mesmo esquema de Photo (WebP no Bunny ou no banco); a primeira é a foto do card."""
+    id = db.Column(db.Integer, primary_key=True)
+    provider_id = db.Column(db.Integer, db.ForeignKey("provider.id"), nullable=False, index=True)
+    position = db.Column(db.Integer, default=0)
+    width = db.Column(db.Integer, default=0)
+    height = db.Column(db.Integer, default=0)
+    etag = db.Column(db.String(40), default="")
+    cdn_key = db.Column(db.String(120), default="")
+    full = deferred(db.Column(db.LargeBinary, nullable=False))
+    thumb = deferred(db.Column(db.LargeBinary, nullable=False))
+
+    def url(self, s="f", absolute=False):
+        if self.cdn_key:
+            return f"{BUNNY_CDN_URL}/{self.cdn_key}-{s}.webp"
+        path = url_for("provider_image", pid=self.id, s="t" if s == "t" else None)
+        return site_url() + path if absolute else path
+
+
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), index=True)
+    # Clique no WhatsApp de um profissional (kind "prestador")
+    provider_id = db.Column(db.Integer, db.ForeignKey("provider.id", ondelete="CASCADE"), index=True)
     # visit (chegada ao site, sem rancho) | view | whatsapp | servico | fav (♥ na lista)
     kind = db.Column(db.String(20), nullable=False)
     source = db.Column(db.String(40), default="")  # de onde veio: instagram, google, google-ads, direto...
@@ -349,6 +410,7 @@ with app.app_context():
         ("rancho", "ical_url", "VARCHAR(500) DEFAULT ''"),
         ("rancho", "ical_synced_at", "TIMESTAMP"),
         ("rancho", "ical_error", "VARCHAR(200) DEFAULT ''"),
+        ("event", "provider_id", "INTEGER REFERENCES provider(id) ON DELETE CASCADE"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -367,13 +429,14 @@ def slugify(text):
     return text or "rancho"
 
 
-def unique_slug(name, exclude_id=None):
+def unique_slug(name, exclude_id=None, model=None):
+    model = model or Rancho
     base = slugify(name)[:100]
     slug, n = base, 2
     while True:
-        q = Rancho.query.filter_by(slug=slug)
+        q = model.query.filter_by(slug=slug)
         if exclude_id:
-            q = q.filter(Rancho.id != exclude_id)
+            q = q.filter(model.id != exclude_id)
         if not q.first():
             return slug
         slug = f"{base}-{n}"
@@ -547,10 +610,11 @@ def categories_with_ranchos(ranchos=None):
     return out
 
 
-def log_event(rancho_id, kind):
+def log_event(rancho_id, kind, provider_id=None):
     if is_admin() or current_owner() or BOT_RE.search(request.headers.get("User-Agent", "")):
         return
-    db.session.add(Event(rancho_id=rancho_id, kind=kind, source=session.get("src", "direto")))
+    db.session.add(Event(rancho_id=rancho_id, provider_id=provider_id, kind=kind,
+                         source=session.get("src", "direto")))
     db.session.commit()
 
 
@@ -558,7 +622,7 @@ def log_event(rancho_id, kind):
 # Origem das visitas
 # ---------------------------------------------------------------------------
 # Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
-LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie"}
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services"}
 # Site de onde veio (pelo Referer) -> nome da origem
 REFERRER_SOURCES = [
     (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
@@ -879,7 +943,7 @@ def counts_since(since, rancho_id=None):
 @app.context_processor
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
-                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
+                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year)
 
 
@@ -1073,7 +1137,8 @@ def rancho(slug):
                            for a in r.amenity_list],
     }
     months = calendar_months(busy_set(r)) if r.calendar_updated_at else None
-    return render_template("rancho.html", r=r, others=others, ld=ld, months=months)
+    return render_template("rancho.html", r=r, others=others, ld=ld, months=months,
+                           providers=public_providers()[:3])
 
 
 @app.route("/rancho/<slug>/whatsapp")
@@ -1117,6 +1182,50 @@ def rancho_saved(slug):
         log_event(r.id, "fav")
         session["faved"] = (counted + [r.id])[-100:]
     return "", 204
+
+
+def public_providers():
+    """Profissionais no ar; quem tem foto primeiro, depois os mais recentes."""
+    ps = Provider.query.filter_by(active=True).order_by(Provider.created_at.desc()).all()
+    return sorted(ps, key=lambda p: p.cover is None)
+
+
+@app.route("/servicos")
+def services():
+    wanted = request.args.get("tipo", "")
+    providers = public_providers()
+    if wanted in SERVICES:
+        providers = [p for p in providers if wanted in p.service_list]
+    rancho = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
+    return render_template("services.html", providers=providers, wanted=wanted,
+                           rancho=rancho if rancho and rancho.public else None)
+
+
+@app.route("/servicos/<slug>/whatsapp")
+def provider_whatsapp(slug):
+    p = Provider.query.filter_by(slug=slug, active=True).first_or_404()
+    if not p.whatsapp_digits:
+        abort(404)
+    r = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
+    log_event(r.id if r else None, "prestador", provider_id=p.id)
+    stay = f" Vou ficar no {r.name}." if r else ""
+    msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
+           f"Gostaria de saber sobre seus serviços para as datas: ")
+    return redirect(f"https://wa.me/{p.whatsapp_digits}?text={quote(msg)}")
+
+
+@app.route("/img/s/<int:pid>")
+def provider_image(pid):
+    p = db.session.get(ProviderPhoto, pid) or abort(404)
+    if p.cdn_key:
+        return redirect(p.url(request.args.get("s", "f")), 301)
+    etag = f'"{p.etag}-{request.args.get("s", "f")}"'
+    if request.headers.get("If-None-Match") == etag:
+        return Response(status=304)
+    resp = Response(p.thumb if request.args.get("s") == "t" else p.full, mimetype="image/webp")
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    resp.headers["ETag"] = etag
+    return resp
 
 
 @app.route("/servicos/whatsapp")
@@ -1187,6 +1296,8 @@ def sitemap():
         urls.append((f"{base}/ranchos/{slug}", None))
     for r in ranchos:
         urls.append((f"{base}/rancho/{r.slug}", r.updated_at))
+    if Provider.query.filter_by(active=True).first():
+        urls.append((f"{base}/servicos", None))
     items = "".join(
         f"<url><loc>{u}</loc>{f'<lastmod>{d:%Y-%m-%d}</lastmod>' if d else ''}</url>" for u, d in urls)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
@@ -1443,7 +1554,9 @@ def fill_rancho(r, form):
     return False
 
 
-def save_uploads(r, files):
+def save_uploads(r, files, photo_cls=None):
+    """Fotos novas no fim da lista de r (rancho ou profissional)."""
+    photo_cls = photo_cls or Photo
     added, skipped = 0, 0
     pos = max([p.position for p in r.photos] + [-1]) + 1
     for f in files:
@@ -1458,11 +1571,12 @@ def save_uploads(r, files):
         key = ""
         if BUNNY_ON:
             db.session.flush()  # rancho novo ainda não tem id
-            key = f"{BUNNY_PREFIX}/{r.id}/{etag}-{secrets.token_hex(3)}"
+            folder = r.id if photo_cls is Photo else f"servicos/{r.id}"
+            key = f"{BUNNY_PREFIX}/{folder}/{etag}-{secrets.token_hex(3)}"
             bunny_upload(key, full, thumb)
             full = thumb = b""
-        r.photos.append(Photo(position=pos, width=w, height=h, full=full, thumb=thumb,
-                              etag=etag, cdn_key=key))
+        r.photos.append(photo_cls(position=pos, width=w, height=h, full=full, thumb=thumb,
+                                  etag=etag, cdn_key=key))
         pos += 1
         added += 1
     return added, skipped
@@ -1668,6 +1782,85 @@ def admin_payment(rid):
     db.session.commit()
     flash(f"Pagamento registrado: {r.name} pago até {r.paid_until.strftime('%d/%m/%Y')}.", "ok")
     return redirect(url_for("admin_home") + "#cobranca")
+
+
+@app.route("/admin/servicos")
+@admin_required
+def admin_providers():
+    providers = Provider.query.order_by(Provider.active.desc(), Provider.name).all()
+    since = now_utc() - timedelta(days=30)
+    clicks = dict(db.session.query(Event.provider_id, func.count(Event.id))
+                  .filter(Event.kind == "prestador", Event.created_at >= since)
+                  .group_by(Event.provider_id).all())
+    return render_template("admin/providers.html", providers=providers, clicks=clicks)
+
+
+@app.route("/admin/servicos/novo", methods=["GET", "POST"])
+@app.route("/admin/servicos/<int:pid>", methods=["GET", "POST"])
+@admin_required
+def admin_provider(pid=None):
+    p = (db.session.get(Provider, pid) or abort(404)) if pid else None
+    if request.method == "POST":
+        f = request.form
+        if p is None:
+            p = Provider(slug="tmp-" + secrets.token_hex(4))
+            db.session.add(p)
+        old_name = p.name
+        p.name = f.get("name", "").strip()[:120] or "Sem nome"
+        p.services = ",".join(k for k in f.getlist("services") if k in SERVICES)
+        p.summary = f.get("summary", "").strip()[:200]
+        p.description = f.get("description", "").strip()
+        p.price_text = f.get("price_text", "").strip()[:160]
+        p.whatsapp = f.get("whatsapp", "").strip()[:30]
+        p.active = bool(f.get("active"))
+        p.paid_until = parse_day(f.get("paid_until"))
+        db.session.flush()
+        if p.name != old_name:
+            p.slug = unique_slug(p.name, exclude_id=p.id, model=Provider)
+        added, skipped = save_uploads(p, request.files.getlist("photos"), ProviderPhoto)
+        db.session.commit()
+        msg = "Profissional salvo."
+        if added:
+            msg += f" {added} foto(s) adicionada(s)."
+        if skipped:
+            msg += f" {skipped} arquivo(s) ignorado(s) por não serem imagens."
+        flash(msg, "ok")
+        return redirect(url_for("admin_provider", pid=p.id))
+    return render_template("admin/provider_edit.html", p=p,
+                           trial_end=months_later(today_br(), TRIAL_MONTHS))
+
+
+@app.route("/admin/servicos/<int:pid>/foto/<int:fid>/<action>", methods=["POST"])
+@admin_required
+def admin_provider_photo(pid, fid, action):
+    p = db.session.get(Provider, pid) or abort(404)
+    photo = next((x for x in p.photos if x.id == fid), None) or abort(404)
+    if action == "excluir":
+        key = photo.cdn_key
+        p.photos.remove(photo)
+        db.session.commit()
+        bunny_delete([key])
+    elif action == "capa":
+        rest = [x for x in p.photos if x.id != fid]
+        for i, x in enumerate([photo] + rest):
+            x.position = i
+        db.session.commit()
+    else:
+        abort(400)
+    return redirect(url_for("admin_provider", pid=p.id) + "#fotos")
+
+
+@app.route("/admin/servicos/<int:pid>/excluir", methods=["POST"])
+@admin_required
+def admin_provider_delete(pid):
+    p = db.session.get(Provider, pid) or abort(404)
+    keys = [x.cdn_key for x in p.photos]
+    name = p.name
+    db.session.delete(p)
+    db.session.commit()
+    bunny_delete(keys)
+    flash(f"{name} excluído(a).", "ok")
+    return redirect(url_for("admin_providers"))
 
 
 @app.route("/admin/rancho/<int:rid>/alternar/<field>", methods=["POST"])

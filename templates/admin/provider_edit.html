@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ p.name if p else 'Novo profissional' }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>{{ p.name if p else 'Novo profissional' }}</h1>
+  <div class="actions"><a href="{{ url_for('admin_providers') }}">← Serviços</a>{% if p %}<a href="{{ url_for('services') }}" target="_blank">Ver no site ↗</a>{% endif %}</div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form edit-form">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+  <fieldset>
+    <legend>Anúncio</legend>
+    <label>Nome <input name="name" required maxlength="120" value="{{ p.name if p else '' }}" placeholder="Maria"></label>
+    <p class="small strong">O que faz</p>
+    <div class="amen-grid">
+      {% for k, (label, icon) in SERVICES.items() %}
+        <label class="check"><input type="checkbox" name="services" value="{{ k }}" {% if p and k in p.service_list %}checked{% endif %}> {{ icon }} {{ label }}</label>
+      {% endfor %}
+    </div>
+    <label>Frase curta para o card <input name="summary" maxlength="200" value="{{ p.summary if p else '' }}" placeholder="Comida caseira e churrasco para o fim de semana no rancho."></label>
+    <label>Descrição <span class="muted">(um parágrafo por linha)</span><textarea name="description" rows="5">{{ p.description if p else '' }}</textarea></label>
+    <label>Valores <span class="muted">(vazio = "Valores a combinar")</span><input name="price_text" maxlength="160" value="{{ p.price_text if p else '' }}" placeholder="Diária a partir de R$ 250"></label>
+    <label>WhatsApp com DDD <input name="whatsapp" maxlength="30" value="{{ p.whatsapp if p else '' }}" placeholder="(16) 99999-9999"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Publicação</legend>
+    <label class="check"><input type="checkbox" name="active" {% if not p or p.active %}checked{% endif %}> Aparece no site</label>
+    <label>Pago até <span class="muted">(ou fim do período grátis)</span>
+      <input type="date" name="paid_until" value="{{ (p.paid_until.isoformat() if p.paid_until else '') if p else trial_end.isoformat() }}">
+    </label>
+  </fieldset>
+
+  <fieldset id="fotos">
+    <legend>Fotos</legend>
+    <label class="upload">
+      <input type="file" name="photos" accept="image/*" multiple>
+      <span>Escolher fotos</span>
+      <small class="muted">A primeira é a foto do card (de preferência o rosto). As outras aparecem como fotos do trabalho.</small>
+    </label>
+  </fieldset>
+
+  <div class="sticky-save"><button class="btn btn-sun">Salvar</button></div>
+</form>
+
+{% if p and p.photos %}
+<ul class="photo-grid">
+  {% for ph in p.photos %}
+  <li>
+    <img src="{{ ph.url('t') }}" alt="" loading="lazy">
+    {% if loop.first %}<span class="badge badge-sun badge-capa">Card</span>{% endif %}
+    <div class="photo-actions">
+      {% if not loop.first %}
+      <form method="post" action="{{ url_for('admin_provider_photo', pid=p.id, fid=ph.id, action='capa') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button>Usar no card</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('admin_provider_photo', pid=p.id, fid=ph.id, action='excluir') }}" data-confirm="Excluir esta foto?">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="danger">Excluir</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if p %}
+<form method="post" action="{{ url_for('admin_provider_delete', pid=p.id) }}" class="danger-zone" data-confirm="Excluir {{ p.name }} para sempre? Fotos e estatísticas também serão apagadas.">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <button class="btn btn-outline danger">Excluir profissional</button>
+</form>
+{% endif %}
+{% endblock %}

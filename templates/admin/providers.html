@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block title %}Serviços{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>Serviços</h1>
+  <div class="actions"><a href="{{ url_for('services') }}" target="_blank">Ver no site ↗</a></div>
+</div>
+<p class="muted">Cozinheiras, faxina, roupa de cama… Aparecem em <a class="link" href="{{ url_for('services') }}" target="_blank">/servicos</a> e na página de cada rancho. O turista chama direto no WhatsApp de cada um.</p>
+
+{% if providers %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Profissional</th><th class="num">WhatsApp (30 dias)</th><th>No site</th><th>Pago até</th></tr></thead>
+  <tbody>
+  {% for p in providers %}
+    <tr class="{% if not p.active %}off{% endif %}">
+      <td>
+        <a href="{{ url_for('admin_provider', pid=p.id) }}" class="strong">{{ p.name }}</a>
+        <div class="muted small">{% for k in p.service_list %}{{ SERVICES[k][0] }}{{ ', ' if not loop.last }}{% else %}sem serviço marcado{% endfor %} · {{ p.photos|length }} foto{{ 's' if p.photos|length != 1 }}{% if not p.whatsapp_digits %} · <span class="danger">sem WhatsApp</span>{% endif %}</div>
+      </td>
+      <td class="num">{{ clicks.get(p.id, 0) }}</td>
+      <td>{{ 'Sim' if p.active else 'Não' }}</td>
+      <td class="small">{{ p.paid_until.strftime('%d/%m/%Y') if p.paid_until else '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<p><a class="btn btn-dark" href="{{ url_for('admin_provider') }}">+ Novo profissional</a></p>
+{% endblock %}

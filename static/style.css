@@ -560,3 +560,23 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .bottombar .btn { padding: 12px 16px; }
 }
 .form input, .form select, .form textarea { font-weight: 400; }
+
+/* Serviços: cards de profissionais (cozinheira, faxina...) */
+.pgrid { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.pgrid-compact { margin: 14px 0 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.pcard { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.pgrid-compact .pcard { background: var(--papel); padding: 14px; }
+.pcard-head { display: flex; gap: 14px; align-items: center; }
+.pcard-head h3 { font-size: 20px; font-weight: 750; }
+.pcard-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; flex: none; background: var(--rio-soft); }
+.pcard-avatar.noimg { display: grid; place-items: center; font-size: 32px; }
+.pcard-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.pcard-sum, .pcard-desc p { margin: 0; font-size: 15px; }
+.pcard-desc { display: grid; gap: 6px; }
+.pcard-photos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pcard-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; }
+.pcard-price { margin: 0; font-weight: 700; }
+.pcard .btn { margin-top: auto; justify-content: center; }
+.chip-link { display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); font-size: 15px; font-weight: 600; text-decoration: none; color: inherit; }
+.chip-link.on { background: var(--rio); border-color: var(--rio); color: #fff; }
+.svc-join { margin-top: 28px; }
