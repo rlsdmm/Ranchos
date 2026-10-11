@@ -11,6 +11,7 @@
       <div class="badges">
         {% if r.featured %}<span class="badge badge-sun">Destaque</span>{% endif %}
         {% if r.verified %}<span class="badge badge-ok">✓ Verificado</span>{% endif %}
+        {% if r.is_new %}<span class="badge badge-new">Novo</span>{% endif %}
       </div>
     </div>
     <div class="card-body">
@@ -24,6 +25,7 @@
       </p>
       {% if r.price_weekend %}<p class="price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
       {% else %}<p class="price muted">Consulte o valor</p>{% endif %}
+      {% if r.agenda_fresh %}<p class="fresh">Agenda atualizada {{ r.calendar_updated_at|ago }}</p>{% endif %}
     </div>
   </a>
   {# fora do link: botão dentro de <a> não é HTML válido #}

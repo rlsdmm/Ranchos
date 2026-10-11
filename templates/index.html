@@ -54,6 +54,24 @@
     <noscript><button class="btn btn-dark" type="submit">Filtrar</button></noscript>
   </form>
 
+  {% if holiday %}
+  <section class="holiday" aria-labelledby="holiday-title">
+    <p class="holiday-kicker">Próximo feriado</p>
+    <h2 id="holiday-title">{{ holiday.name }}</h2>
+    <p class="holiday-when">{{ holiday.period }}</p>
+    {% set n = holiday.free|length %}
+    {% if n %}
+      <p><strong>{{ n }} {{ 'rancho está livre' if n == 1 else 'ranchos estão livres' }}</strong> na agenda:</p>
+      <ul class="holiday-list">
+        {% for r in holiday.free[:8] %}<li><a href="{{ url_for('rancho', slug=r.slug) }}#agenda">{{ r.name }}</a></li>{% endfor %}
+      </ul>
+    {% else %}
+      <p><strong>Os ranchos com agenda no site já estão reservados</strong> para esse feriado.</p>
+    {% endif %}
+    <p class="muted small">Rancho sem agenda no site também pode estar livre: pergunte ao dono pelo WhatsApp.</p>
+  </section>
+  {% endif %}
+
   <div id="results" aria-live="polite">
   <div class="results-head">
     <h2>{% if filtering %}{{ ranchos|length }} de {{ total }} ranchos{% else %}{{ total }} {{ 'rancho' if total == 1 else 'ranchos' }} para alugar{% endif %}</h2>
@@ -72,7 +90,7 @@
         <a class="btn btn-dark" href="{{ url_for('index') }}#ranchos">Ver todos os ranchos</a>
       {% else %}
         <p><strong>Os primeiros ranchos estão chegando.</strong></p>
-        <p class="muted">Tem um rancho aqui? Anuncie grátis.</p>
+        <p class="muted">Tem um rancho aqui? Anuncie com 3 meses grátis.</p>
         <a class="btn btn-dark" href="{{ url_for('anuncie') }}">Anunciar meu rancho</a>
       {% endif %}
     </div>
@@ -109,7 +127,7 @@
 <section class="wrap owner-cta">
   <div>
     <h2>Tem um rancho em {{ CITY_NAME }}?</h2>
-    <p class="muted">Anuncie para turistas que já estão procurando onde ficar. A gente tira as fotos e monta o anúncio para você.</p>
+    <p class="muted">Anuncie para turistas que já estão procurando onde ficar. A gente tira as fotos e monta o anúncio para você. Os 3 primeiros meses são grátis.</p>
   </div>
   <a class="btn btn-sun" href="{{ url_for('anuncie') }}">Anunciar meu rancho</a>
 </section>

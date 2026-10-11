@@ -144,6 +144,9 @@ CATEGORIES = {
               "Confira quartos, camas e o valor do fim de semana de cada um."),
 }
 LIST_MAX = 12  # ranchos numa lista para o grupo
+NEW_DAYS = 30           # selo "Novo" nos ranchos que entraram há menos tempo que isso...
+NEW_MAX = 3             # ...mas só nos mais recentes: com o site começando, todos seriam novos
+FRESH_AGENDA_DAYS = 30  # agenda mais velha que isso não aparece como "atualizada" no card
 
 BOT_RE = re.compile(r"bot|crawl|spider|slurp|facebookexternalhit|whatsapp|preview|curl|wget|python", re.I)
 
@@ -215,6 +218,16 @@ class Rancho(db.Model):
         if d and not d.startswith("55"):
             d = "55" + d
         return d
+
+    @property
+    def is_new(self):
+        return self.id in new_rancho_ids()
+
+    @property
+    def agenda_fresh(self):
+        """Agenda mexida há pouco. Data velha no card passaria a impressão contrária."""
+        return bool(self.calendar_updated_at
+                    and now_utc() - self.calendar_updated_at < timedelta(days=FRESH_AGENDA_DAYS))
 
 
 class Owner(db.Model):
@@ -482,6 +495,16 @@ def public_ranchos():
     return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
 
 
+def new_rancho_ids():
+    """Ids com selo "Novo". Calculado uma vez por requisição."""
+    if "new_ids" not in g:
+        since = now_utc() - timedelta(days=NEW_DAYS)
+        q = (public_ranchos().filter(Rancho.created_at >= since)
+             .order_by(Rancho.created_at.desc()).with_entities(Rancho.id).limit(NEW_MAX))
+        g.new_ids = {rid for (rid,) in q}
+    return g.new_ids
+
+
 def default_order(ranchos):
     return sorted(ranchos, key=lambda r: (not r.featured, not r.verified, -(r.updated_at or now_utc()).timestamp()))
 
@@ -631,6 +654,29 @@ def today_br():
     return datetime.now(BR_TZ).date()
 
 
+WEEKDAYS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+
+
+def next_holiday(today=None):
+    """Próximo feriado e o período que o turista emenda: {name, day, start, end}.
+    Quinta ou sexta emendam até domingo; segunda ou terça começam no sábado."""
+    today = today or today_br()
+    hol = {}
+    for y in (today.year, today.year + 1):
+        hol.update(br_holidays(y))
+    day = min(d for d in hol if d >= today)
+    wd = day.weekday()  # segunda = 0
+    start = day - timedelta(days={0: 2, 1: 3, 6: 1}.get(wd, 0))
+    end = day + timedelta(days={3: 3, 4: 2, 5: 1}.get(wd, 0))
+    while end + timedelta(days=1) in hol:  # Carnaval: segunda e terça
+        end += timedelta(days=1)
+    return {"name": hol[day], "day": day, "start": max(start, today), "end": end}
+
+
+def day_label(d):
+    return f"{WEEKDAYS_PT[d.weekday()]}, {d.day} de {MONTHS_PT[d.month - 1]}"
+
+
 def calendar_months(busy, n=CALENDAR_MONTHS):
     """Meses da agenda a partir do mês atual: [{label, weeks: [[dia|None x7]]}].
     Semana começando no domingo, como nos calendários brasileiros."""
@@ -714,6 +760,23 @@ def local_time(dt):
     return dt.replace(tzinfo=timezone.utc).astimezone(BR_TZ).strftime("%d/%m/%Y %H:%M") if dt else ""
 
 
+@app.template_filter("ago")
+def ago(dt):
+    """"hoje", "ontem", "há 3 dias"... contando pelo dia de Brasília."""
+    if not dt:
+        return ""
+    n = (today_br() - dt.replace(tzinfo=timezone.utc).astimezone(BR_TZ).date()).days
+    if n <= 0:
+        return "hoje"
+    if n == 1:
+        return "ontem"
+    if n < 14:
+        return f"há {n} dias"
+    if n < 60:
+        return f"há {n // 7} semanas"
+    return f"há {n // 30} meses"
+
+
 @app.after_request
 def security_headers(resp):
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -755,7 +818,23 @@ def index():
     filtering = bool(cap or max_price or wanted)
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
                            wanted=wanted, order=order, filtering=filtering,
-                           categories=categories_with_ranchos())
+                           categories=categories_with_ranchos(), holiday=holiday_block())
+
+
+def holiday_block():
+    """Bloco "Próximo feriado" da página inicial. Só conta ranchos com agenda no site:
+    dos outros não dá para saber se estão livres. None se nenhum tem agenda."""
+    h = next_holiday()
+    with_agenda = public_ranchos().filter(Rancho.calendar_updated_at.isnot(None)).all()
+    if not with_agenda:
+        return None
+    busy = {rid for (rid,) in db.session.query(BusyDay.rancho_id)
+            .filter(BusyDay.day.between(h["start"], h["end"])).distinct()}
+    h["free"] = default_order([r for r in with_agenda if r.id not in busy])
+    h["label"] = day_label(h["day"])
+    h["period"] = (f"De {day_label(h['start'])} a {day_label(h['end'])}"
+                   if h["start"] != h["end"] else day_label(h["day"]).capitalize())
+    return h
 
 
 @app.route("/ranchos/<slug>")
