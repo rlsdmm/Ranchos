@@ -246,6 +246,20 @@ class Rancho(db.Model):
         return d
 
     @property
+    def coords(self):
+        """"lat,lng" tirado do link do Google Maps, para o botão do Waze. None quando o link
+        não traz coordenadas (link curto maps.app.goo.gl ou só o código do lugar)."""
+        u = unquote(self.maps_url or "")
+        num = r"(-?\d{1,2}\.\d{3,})"
+        for pat in (r"!3d" + num + r"!4d" + num,                          # alfinete do lugar
+                    r"[?&](?:q|ll|query|destination)=" + num + r",\s*" + num,
+                    r"@" + num + r"," + num):                             # centro do mapa
+            m = re.search(pat, u)
+            if m and abs(float(m.group(1))) <= 90 and abs(float(m.group(2))) <= 180:
+                return f"{m.group(1)},{m.group(2)}"
+        return None
+
+    @property
     def is_new(self):
         return self.id in new_rancho_ids()
 

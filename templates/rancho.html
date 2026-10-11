@@ -107,7 +107,10 @@
       {% if r.maps_url %}
       <section class="block">
         <h2>Localização</h2>
-        <p><a class="link" href="{{ r.maps_url }}" target="_blank" rel="noopener nofollow">Ver no mapa ↗</a></p>
+        <div class="row-btns map-btns">
+          <a class="btn btn-outline" href="{{ r.maps_url }}" target="_blank" rel="noopener nofollow">🗺️ Google Maps</a>
+          {% if r.coords %}<a class="btn btn-outline" href="https://waze.com/ul?ll={{ r.coords }}&amp;navigate=yes" target="_blank" rel="noopener nofollow">🚗 Waze</a>{% endif %}
+        </div>
       </section>
       {% endif %}
 
