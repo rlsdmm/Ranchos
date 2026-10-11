@@ -1119,10 +1119,14 @@ def rancho(slug):
         abort(404)
     seen = session.get("seen", {})
     today = datetime.now().strftime("%Y-%m-%d")
+    # "view" = pessoa (1 por rancho por dia); "reopen" = a mesma pessoa abrindo de novo no dia.
+    # Visualizações = view + reopen; pessoas = view (o histórico de antes do reopen continua igual).
     if seen.get(str(r.id)) != today:
         log_event(r.id, "view")
         seen[str(r.id)] = today
         session["seen"] = dict(list(seen.items())[-50:])
+    else:
+        log_event(r.id, "reopen")
     others = (public_ranchos().filter(Rancho.id != r.id)
               .order_by(Rancho.featured.desc(), Rancho.updated_at.desc()).limit(3).all())
     base = site_url()
@@ -1465,6 +1469,7 @@ def admin_home():
     leads = Lead.query.order_by(Lead.handled, Lead.created_at.desc()).limit(50).all()
     totals = {
         "views": sum(n for (_, k), n in c30.items() if k == "view"),
+        "pageviews": sum(n for (_, k), n in c30.items() if k in ("view", "reopen")),
         "whatsapp": sum(n for (_, k), n in c30.items() if k == "whatsapp"),
         "servico": sum(n for (_, k), n in c30.items() if k == "servico"),
         "fav": sum(n for (_, k), n in c30.items() if k == "fav"),
@@ -1891,7 +1896,8 @@ def admin_report(rid):
         months.append({
             "label": f"{MONTHS_PT[m0.month - 1]} de {m0.year}",
             "short": MONTHS_PT[m0.month - 1][:3],
-            "views": sel.count("view"),
+            "views": sel.count("view"),                             # pessoas
+            "pageviews": sel.count("view") + sel.count("reopen"),   # visualizações
             "whatsapp": sel.count("whatsapp"),
             "fav": sel.count("fav"),
         })
@@ -1900,13 +1906,18 @@ def admin_report(rid):
     prev = months[1]
     first = (r.owner_name or "").split()[0] if r.owner_name else ""
     text = (f"Olá{(' ' + first) if first else ''}! Resumo de {cur['label']} do {r.name} no {SITE_NAME}:\n"
-            f"👀 {cur['views']} pessoas viram o anúncio\n"
-            f"💬 {cur['whatsapp']} pessoas clicaram para falar com você no WhatsApp\n"
-            + (f"❤️ {cur['fav']} pessoas salvaram o rancho na lista para mostrar ao grupo\n" if cur["fav"] else "") +
-            f"No mês anterior foram {prev['whatsapp']} contatos.\n"
-            f"Link do anúncio: {site_url()}/rancho/{r.slug}")
+            f"👀 {cur['pageviews']} visualizações do anúncio, por {cur['views']} "
+            f"{'pessoa' if cur['views'] == 1 else 'pessoas'}\n"
+            f"💬 {cur['whatsapp']} {'pessoa clicou' if cur['whatsapp'] == 1 else 'pessoas clicaram'} "
+            f"para falar com você no WhatsApp\n"
+            + (f"❤️ {cur['fav']} {'pessoa salvou' if cur['fav'] == 1 else 'pessoas salvaram'} "
+               f"o rancho na lista para mostrar ao grupo\n" if cur["fav"] else "")
+            # no primeiro mês do anúncio não tem mês anterior para comparar
+            + (f"No mês anterior foram {prev['whatsapp']} {'contato' if prev['whatsapp'] == 1 else 'contatos'}.\n"
+               if prev["pageviews"] or prev["whatsapp"] else "")
+            + f"Link do anúncio: {site_url()}/rancho/{r.slug}")
     wa_link = f"https://wa.me/{r.whatsapp_digits}?text={quote(text)}" if r.whatsapp_digits else ""
-    peak = max([m["views"] for m in months] + [1])
+    peak = max([m["pageviews"] for m in months] + [1])
     return render_template("admin/report.html", r=r, months=months, text=text, wa_link=wa_link, peak=peak)
 
 

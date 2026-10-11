@@ -8,7 +8,7 @@
 {% if ranchos %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visitas (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th class="num">♥ Salvaram (30 dias)</th><th></th></tr></thead>
+  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visualizações (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th class="num">♥ Salvaram (30 dias)</th><th></th></tr></thead>
   <tbody>
   {% for r in ranchos %}
     <tr class="{% if not r.public %}off{% endif %}">
@@ -22,7 +22,7 @@
         {% elif not r.active %}<span class="badge">Pausado</span>
         {% else %}<span class="badge badge-ok">No ar</span>{% endif %}
       </td>
-      <td class="num">{{ c30.get((r.id, 'view'), 0) }}</td>
+      <td class="num">{{ c30.get((r.id, 'view'), 0) + c30.get((r.id, 'reopen'), 0) }}<div class="muted small">{{ c30.get((r.id, 'view'), 0) }} pessoas</div></td>
       <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
       <td class="num">{{ c30.get((r.id, 'fav'), 0) }}</td>
       <td><div class="actions">
