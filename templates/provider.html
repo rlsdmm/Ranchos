@@ -38,9 +38,13 @@
   </p>
   {% endif %}
 
+  {# Tocar numa foto abre a tela cheia (app.js); as setas passam pelo cardápio e pelas fotos do trabalho #}
+  <div data-gallery>
   {% if menu %}
+  {# Quem também faz faxina ou roupa de cama não tem só comida na lista #}
+  {% set only_food = not p.service_list|reject('in', ['cozinheira', 'churrasqueiro', 'confeitaria'])|list %}
   <section class="menu" aria-labelledby="cardapio">
-    <h2 id="cardapio">Cardápio</h2>
+    <h2 id="cardapio">{{ 'Cardápio' if only_food else 'Cardápio e serviços' }}</h2>
     {% set sections = p.menu_sections %}
     {% if sections|length > 1 %}
     <nav class="chips menu-nav" aria-label="Seções do cardápio">
@@ -52,9 +56,9 @@
       <ul class="menu-grid">
         {% for ph in items %}
         <li class="menu-item">
-          <a class="menu-photo" href="{{ ph.url() }}" target="_blank" rel="noopener">
+          <button type="button" class="menu-photo" data-full="{{ ph.url() }}" data-caption="{{ ph.title }}" aria-label="Ampliar foto: {{ ph.title }}">
             <img src="{{ ph.url('t') }}" alt="{{ ph.title }}" loading="lazy" width="{{ ph.width }}" height="{{ ph.height }}">
-          </a>
+          </button>
           <div class="menu-body">
             <h4>{{ ph.title }}</h4>
             {% if p.whatsapp_digits %}
@@ -73,9 +77,18 @@
   <section class="menu">
     <h2>Fotos do trabalho</h2>
     <ul class="pcard-photos provider-photos">
-      {% for ph in work %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
+      {% for ph in work %}<li><button type="button" class="work-photo" data-full="{{ ph.url() }}" data-caption="" aria-label="Ampliar foto do trabalho {{ loop.index }} de {{ work|length }}"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></button></li>{% endfor %}
     </ul>
   </section>
   {% endif %}
+  </div>
 </article>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" aria-label="Fechar">×</button>
+  <button class="lb-prev" aria-label="Foto anterior">‹</button>
+  <img alt="">
+  <button class="lb-next" aria-label="Próxima foto">›</button>
+  <p class="lb-count"></p>
+</div>
 {% endblock %}

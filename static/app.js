@@ -186,7 +186,8 @@
       i = (n + items.length) % items.length;
       img.src = items[i].dataset.full;
       img.alt = items[i].querySelector('img').alt;
-      count.textContent = `${i + 1} / ${items.length}`;
+      const caption = items[i].dataset.caption;  // nome do prato, no cardápio
+      count.textContent = `${caption ? caption + ' · ' : ''}${i + 1} / ${items.length}`;
     };
     const open = (n) => { show(n); lb.hidden = false; document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
     const close = () => { lb.hidden = true; document.body.style.overflow = ''; items[i].focus(); };

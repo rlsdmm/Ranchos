@@ -456,7 +456,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lb-close { top: 16px; right: 16px; }
 .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
 .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
-.lb-count { position: absolute; bottom: 16px; color: #fff; margin: 0; font-weight: 600; }
+.lb-count { position: absolute; bottom: 16px; left: 16px; right: 16px; text-align: center; color: #fff; margin: 0; font-weight: 600; }
 
 /* ---------- Anuncie ---------- */
 .anuncie { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; padding: 48px 0 24px; align-items: start; }
@@ -715,6 +715,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .menu-sec { font-size: 20px; font-weight: 750; margin: 26px 0 0; scroll-margin-top: 64px; }
 .menu-grid { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .menu-item { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
+.menu-photo, .work-photo { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.work-photo { border-radius: 10px; overflow: hidden; }
+.menu-photo:focus-visible, .work-photo:focus-visible { outline: 3px solid var(--sol); outline-offset: -3px; }
 .menu-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
 .menu-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .menu-body h4 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; }
