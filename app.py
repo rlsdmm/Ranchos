@@ -97,6 +97,7 @@ AMENITIES = {
     "futebol": ("Campo de futebol", "⚽"),
     "sinuca": ("Mesa de sinuca", "🎱"),
     "bebedouro": ("Bebedouro", "🚰"),
+    "gerador": ("Gerador de energia", "⚡"),
 }
 # Serviços que os profissionais anunciam (página /servicos e bloco na página do rancho)
 SERVICES = {
@@ -109,7 +110,7 @@ SERVICES = {
 
 # Comodidades que viram filtro na página inicial e linha na comparação da lista
 FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
-                    "beach_tennis", "parquinho", "futebol"]
+                    "beach_tennis", "parquinho", "futebol", "gerador"]
 
 # Páginas por tipo de rancho (/ranchos/<slug>), feitas para as buscas do Google.
 # "amenity" filtra pela comodidade; "min_cap" pela quantidade de pessoas.
@@ -154,6 +155,10 @@ CATEGORIES = {
     "com-mesa-de-sinuca": dict(
         label="Com sinuca", amenity="sinuca", title="Ranchos com mesa de sinuca",
         intro="Ranchos em {city} com mesa de sinuca, para a turma jogar à noite ou nos dias de chuva. "
+              "Veja fotos, estrutura e o valor do fim de semana e combine direto com o dono pelo WhatsApp."),
+    "com-gerador-de-energia": dict(
+        label="Com gerador", amenity="gerador", title="Ranchos com gerador de energia",
+        intro="Ranchos em {city} com gerador, para a festa não parar e a comida não estragar se faltar luz. "
               "Veja fotos, estrutura e o valor do fim de semana e combine direto com o dono pelo WhatsApp."),
     "para-grupos-grandes": dict(
         label="Para 20 pessoas ou mais", min_cap=20, title="Ranchos para grupos grandes",
