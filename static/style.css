@@ -53,7 +53,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topnav a { text-decoration: none; opacity: .9; }
 .topnav a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
 .topnav form { margin: 0; }
-.topnav-cta { background: var(--sol); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 700; opacity: 1 !important; }
+.topnav-cta { background: var(--sol); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 700; opacity: 1 !important; text-decoration: none; }
 .topnav-cta:hover { text-decoration: none !important; background: #ffc653; }
 @media (max-width: 760px) {
   .topbar-in { flex-wrap: wrap; gap: 0 12px; padding-top: 10px; }
