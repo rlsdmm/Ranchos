@@ -1534,7 +1534,7 @@ def robots():
     # Em produção quem responde é a cópia estática firebase-public/robots.txt (o Firebase serve
     # arquivo estático antes de repassar ao Cloud Run), para o Google sempre conseguir ler
     # mesmo se a ligação com o Cloud Run engasgar. Mudou aqui? Atualize lá também.
-    body = f"User-agent: *\nDisallow: /admin\nDisallow: /rancho/*/whatsapp\nSitemap: {site_url()}/sitemap.xml\n"
+    body = f"User-agent: *\nDisallow: /admin\nDisallow: /rancho/*/whatsapp\nDisallow: /servicos/*/whatsapp\nSitemap: {site_url()}/sitemap.xml\n"
     return Response(body, mimetype="text/plain")
 
 
@@ -1812,8 +1812,9 @@ def fill_rancho(r, form):
 
 def menu_title_from_filename(filename):
     """'03 Sobremesas - Pavê de chocolate.jpg' -> ('Sobremesas', 'Pavê de chocolate')."""
-    name = os.path.splitext(os.path.basename(filename or ""))[0]
-    name = re.sub(r"^\s*\d+\s*[-._)]?\s*", "", name).replace("_", " ").strip()
+    stem = os.path.splitext(os.path.basename(filename or ""))[0]
+    # Nome só de número ("1.jpg") fica como está; sem nome a foto sairia do cardápio.
+    name = re.sub(r"^\s*\d+\s*[-._)]?\s*", "", stem).replace("_", " ").strip() or stem.strip() or "Item"
     section, _, title = name.rpartition(" - ")
     title = title.strip() or name
     return section.strip()[:60], (title[:1].upper() + title[1:])[:120]

@@ -47,15 +47,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar-in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
 .brand { font-weight: 800; font-stretch: 112%; font-size: 20px; text-decoration: none; letter-spacing: -0.01em; margin: 0; }
 .footer .brand { color: var(--ink); }
-.topnav { display: flex; align-items: center; gap: 22px; font-size: 15px; }
+.topnav { display: flex; align-items: center; gap: 22px; font-size: 15px; margin-left: auto; }
+.topnav a[aria-current="page"] { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
+.nav-short { display: none; }
 .topnav a { text-decoration: none; opacity: .9; }
 .topnav a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
 .topnav form { margin: 0; }
 .topnav-cta { background: var(--sol); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 700; opacity: 1 !important; }
 .topnav-cta:hover { text-decoration: none !important; background: #ffc653; }
 @media (max-width: 760px) {
-  .topnav a:not(.topnav-cta) { display: none; }
-  .admin .topnav a { display: inline; }
+  .topbar-in { flex-wrap: wrap; gap: 0 12px; padding-top: 10px; }
+  .topbar-in > .brand { flex: 1; min-width: 0; line-height: 1.15; }
+  .topbar-in > .topnav-cta { flex: none; padding: 7px 14px; font-size: 14px; }
+  .topnav { order: 3; width: 100%; margin: 0; gap: 4px; font-size: 15px; }
+  .topnav a { padding: 10px 12px 12px; opacity: .85; }
+  .topnav a:first-child { padding-left: 0; }
+  .nav-long { display: none; }
+  .nav-short { display: inline; }
+  /* O painel mantém o topo de antes, numa linha só */
+  .admin .topbar-in { flex-wrap: nowrap; gap: 16px; padding-top: 0; }
+  .admin .topnav { order: 0; width: auto; margin-left: auto; gap: 22px; }
+  .admin .topnav a { padding: 0; opacity: .9; }
 }
 
 /* ---------- Hero ---------- */
@@ -707,7 +719,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .menu-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .menu-body h4 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; }
 .menu-ask { margin-top: auto; align-self: flex-start; color: var(--zap-deep); font-weight: 700; font-size: 15px; text-decoration: none; }
-.menu-ask::before { content: "💬 "; }
+.menu-ask::before { content: "💬 "; content: "💬 " / ""; }
 .menu-ask:hover { text-decoration: underline; }
 .provider-photos { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-top: 14px; }
 @media (max-width: 640px) {

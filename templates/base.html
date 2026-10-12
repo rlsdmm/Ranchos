@@ -12,19 +12,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=17">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="topbar">
     <div class="wrap topbar-in">
       <a class="brand" href="{{ url_for('index') }}">{{ SITE_NAME }}</a>
-      <nav class="topnav">
+      {# No celular os links descem para uma segunda linha, com nomes curtos #}
+      <nav class="topnav" aria-label="Menu principal">
         <a href="{{ url_for('index') }}#ranchos">Ranchos</a>
-        <a href="{{ url_for('safety_guide') }}">Como alugar com segurança</a>
-        <a href="{{ url_for('services') }}">Cozinheira e faxina</a>
-        <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
+        <a href="{{ url_for('services') }}" {% if request.endpoint in ('services', 'provider_page') %}aria-current="page"{% endif %}><span class="nav-long">Cozinheira e faxina</span><span class="nav-short">Serviços</span></a>
+        <a href="{{ url_for('safety_guide') }}" {% if request.endpoint == 'safety_guide' %}aria-current="page"{% endif %}><span class="nav-long">Como alugar com segurança</span><span class="nav-short">Segurança</span></a>
       </nav>
+      <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie<span class="nav-long"> seu rancho</span></a>
     </div>
   </header>
 
