@@ -151,6 +151,10 @@ CATEGORIES = {
         label="Com campo de futebol", amenity="futebol", title="Ranchos com campo de futebol",
         intro="Ranchos em {city} com campo de futebol para aquela pelada com os amigos. "
               "Veja fotos, quantas pessoas cabem e o valor do fim de semana."),
+    "com-mesa-de-sinuca": dict(
+        label="Com sinuca", amenity="sinuca", title="Ranchos com mesa de sinuca",
+        intro="Ranchos em {city} com mesa de sinuca, para a turma jogar à noite ou nos dias de chuva. "
+              "Veja fotos, estrutura e o valor do fim de semana e combine direto com o dono pelo WhatsApp."),
     "para-grupos-grandes": dict(
         label="Para 20 pessoas ou mais", min_cap=20, title="Ranchos para grupos grandes",
         intro="Ranchos em {city} que recebem 20 pessoas ou mais, para família grande, aniversário ou a turma toda. "
