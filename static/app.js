@@ -156,42 +156,41 @@
     });
   }
 
-  // Gallery lightbox. Com ambientes (piscina, quartos...), mostra só as fotos do ambiente escolhido.
+  // Galeria: botões de ambiente filtram as fotos na página; a tela cheia mostra o que está filtrado.
   const gallery = document.querySelector('[data-gallery]');
   const lb = document.getElementById('lightbox');
   if (gallery && lb) {
     const all = [...gallery.querySelectorAll('[data-full]')];
+    const countTag = gallery.querySelector('.g-count');
+    const chips = [...document.querySelectorAll('[data-area-filter]')];
     const img = lb.querySelector('img');
     const count = lb.querySelector('.lb-count');
-    const tabs = [...lb.querySelectorAll('[data-area-tab]')];
     let items = all;
     let i = 0;
-    let opener = null;
     let startX = null;
+    const filter = (area) => {
+      items = area ? all.filter((el) => el.dataset.area === area) : all;
+      // As do ambiente vão para a frente (a grade do computador mostra as 5 primeiras); as outras somem.
+      [...items, ...all.filter((el) => !items.includes(el))].forEach((el) => gallery.insertBefore(el, countTag));
+      all.forEach((el) => {
+        el.hidden = !items.includes(el);
+        el.classList.toggle('g-main', el === items[0]);
+      });
+      gallery.className = gallery.className.replace(/g-n\d/, `g-n${Math.min(items.length, 5)}`);
+      if (countTag) { countTag.textContent = `${items.length} fotos`; countTag.hidden = items.length <= 5; }
+      gallery.scrollLeft = 0;
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.areaFilter === area)));
+    };
+    chips.forEach((c) => c.addEventListener('click', () => filter(c.dataset.areaFilter)));
     const show = (n) => {
       i = (n + items.length) % items.length;
       img.src = items[i].dataset.full;
       img.alt = items[i].querySelector('img').alt;
       count.textContent = `${i + 1} / ${items.length}`;
     };
-    const setArea = (area) => {
-      items = area ? all.filter((el) => el.dataset.area === area) : all;
-      tabs.forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.areaTab === area)));
-    };
-    const open = (area, el) => {
-      setArea(area);
-      show(el ? Math.max(items.indexOf(el), 0) : 0);
-      lb.hidden = false;
-      document.body.style.overflow = 'hidden';
-      lb.querySelector('.lb-close').focus();
-    };
-    const close = () => { lb.hidden = true; document.body.style.overflow = ''; (opener || items[i]).focus(); };
-    all.forEach((el) => el.addEventListener('click', () => { opener = el; open('', el); }));
-    document.querySelectorAll('[data-area-open]').forEach((b) => b.addEventListener('click', () => {
-      opener = b;
-      open(b.dataset.areaOpen);
-    }));
-    tabs.forEach((t) => t.addEventListener('click', () => { setArea(t.dataset.areaTab); show(0); }));
+    const open = (n) => { show(n); lb.hidden = false; document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
+    const close = () => { lb.hidden = true; document.body.style.overflow = ''; items[i].focus(); };
+    all.forEach((el) => el.addEventListener('click', () => open(items.indexOf(el))));
     lb.querySelector('.lb-close').addEventListener('click', close);
     lb.querySelector('.lb-prev').addEventListener('click', () => show(i - 1));
     lb.querySelector('.lb-next').addEventListener('click', () => show(i + 1));

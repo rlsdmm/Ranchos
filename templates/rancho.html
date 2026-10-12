@@ -46,10 +46,10 @@
     {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
   </div>
   {% if areas %}
-  {# Botões por ambiente: abrem as fotos daquele ambiente em tela cheia #}
-  <div class="photo-areas" role="group" aria-label="Fotos por ambiente">
-    <button type="button" class="area-chip" data-area-open="">Todas <span>{{ r.photos|length }}</span></button>
-    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-open="{{ key }}">{{ label }} <span>{{ n }}</span></button>{% endfor %}
+  {# Botões por ambiente: filtram a galeria acima; a tela cheia só abre tocando numa foto #}
+  <div class="photo-areas" role="group" aria-label="Ver fotos por ambiente">
+    <button type="button" class="area-chip" data-area-filter="" aria-pressed="true">Todas <span>{{ r.photos|length }}</span></button>
+    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-filter="{{ key }}" aria-pressed="false">{{ label }} <span>{{ n }}</span></button>{% endfor %}
   </div>
   {% endif %}
   {% endif %}
@@ -222,12 +222,6 @@
 {% endif %}
 
 <div class="lightbox" id="lightbox" hidden>
-  {% if areas %}
-  <div class="lb-areas" role="group" aria-label="Fotos por ambiente">
-    <button type="button" class="area-chip" data-area-tab="">Todas</button>
-    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-tab="{{ key }}">{{ label }}</button>{% endfor %}
-  </div>
-  {% endif %}
   <button class="lb-close" aria-label="Fechar">×</button>
   <button class="lb-prev" aria-label="Foto anterior">‹</button>
   <img alt="">

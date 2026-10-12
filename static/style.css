@@ -660,24 +660,23 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tips .tips-more { background: none; padding: 4px 0 0; }
 .tips .tips-more::before { display: none; }
 
-/* fotos por ambiente (página do rancho e tela cheia) */
-.photo-areas { display: flex; gap: 8px; margin: 12px 0 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.photo-areas::-webkit-scrollbar { display: none; }
+/* fotos por ambiente: botões que filtram a galeria (quebram linha, nada fica escondido) */
+.photo-areas { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
 .area-chip {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
   border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
 }
 .area-chip:hover { border-color: var(--rio-2); }
 .area-chip span { background: var(--rio-soft); color: var(--rio); border-radius: 999px; padding: 0 7px; font-size: 13px; }
-.lb-areas { position: absolute; top: 16px; left: 16px; right: 84px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-.lb-areas::-webkit-scrollbar { display: none; }
-.lightbox .lb-areas .area-chip {
-  position: static; width: auto; height: auto; font-size: 14px; line-height: 1.3; border-radius: 999px;
-  padding: 7px 14px; background: rgba(255,255,255,.12); border: 0; color: #fff;
+.area-chip[aria-pressed="true"] { background: var(--rio); border-color: var(--rio); color: #fff; }
+.area-chip[aria-pressed="true"] span { background: rgba(255,255,255,.2); color: #fff; }
+.gallery .g-item[hidden] { display: none !important; }
+.g-count[hidden] { display: none; }
+@media (max-width: 640px) {
+  .photo-areas { gap: 6px; }
+  .area-chip { font-size: 14px; padding: 6px 11px; gap: 5px; }
+  .area-chip span { font-size: 12px; padding: 0 6px; }
 }
-.lightbox .lb-areas .area-chip[aria-pressed="true"] { background: #fff; color: var(--ink); }
-.lightbox:has(.lb-areas) img { max-height: 76vh; }
-@media (max-width: 640px) { .photo-areas { margin-inline: -20px; padding-inline: 20px; } .lb-areas { left: 12px; right: 76px; top: 18px; } }
 
 /* painel: ambiente de cada foto */
 .photo-area { display: flex; align-items: center; gap: 6px; padding: 8px 8px 0; margin: 0; }

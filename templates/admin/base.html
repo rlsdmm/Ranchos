@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
 </head>
 <body class="admin">
   <header class="topbar">
@@ -29,6 +29,6 @@
     {% if msgs %}<div class="wrap flashes">{% for cat, m in msgs %}<p class="flash flash-{{ cat }}">{{ m }}</p>{% endfor %}</div>{% endif %}
   {% endwith %}
   <main class="wrap admin-main">{% block content %}{% endblock %}</main>
-  <script src="{{ url_for('static', filename='app.js') }}?v=4" defer></script>
+  <script src="{{ url_for('static', filename='app.js') }}?v=5" defer></script>
 </body>
 </html>
