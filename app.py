@@ -383,7 +383,9 @@ class Provider(db.Model):
 
     @property
     def work_photos(self):
-        """Fotos do trabalho (sem as do cardápio), sem a do card."""
+        """Fotos do trabalho, sem a do card. Quem tem cardápio mostra só o cardápio."""
+        if self.menu:
+            return []
         return [ph for ph in self.photos[1:] if not ph.title]
 
     @property
