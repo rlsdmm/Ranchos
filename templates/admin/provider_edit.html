@@ -3,10 +3,10 @@
 {% block content %}
 <div class="edit-head">
   <h1>{{ p.name if p else 'Novo profissional' }}</h1>
-  <div class="actions"><a href="{{ url_for('admin_providers') }}">← Serviços</a>{% if p %}<a href="{{ url_for('services') }}" target="_blank">Ver no site ↗</a>{% endif %}</div>
+  <div class="actions"><a href="{{ url_for('admin_providers') }}">← Serviços</a>{% if p %}<a href="{{ url_for('provider_page', slug=p.slug) }}" target="_blank">Ver no site ↗</a>{% endif %}</div>
 </div>
 
-<form method="post" enctype="multipart/form-data" class="form edit-form">
+<form method="post" enctype="multipart/form-data" class="form edit-form" id="provider-form">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
 
   <fieldset>
@@ -39,6 +39,11 @@
       <span>Escolher fotos</span>
       <small class="muted">A primeira é a foto do card (de preferência o rosto). As outras aparecem como fotos do trabalho.</small>
     </label>
+    <label class="upload">
+      <input type="file" name="menu_photos" accept="image/*" multiple>
+      <span>Fotos do cardápio</span>
+      <small class="muted">O nome do arquivo vira o nome do item. Para já cair numa seção, use "Seção - Nome", ex.: <b>Sobremesas - Pavê de chocolate.jpg</b>. Dá para corrigir depois embaixo de cada foto: foto com nome entra no cardápio.</small>
+    </label>
   </fieldset>
 
   <div class="sticky-save"><button class="btn btn-sun">Salvar</button></div>
@@ -50,6 +55,10 @@
   <li>
     <img src="{{ ph.url('t') }}" alt="" loading="lazy">
     {% if loop.first %}<span class="badge badge-sun badge-capa">Card</span>{% endif %}
+    <div class="photo-menu">
+      <input form="provider-form" name="title-{{ ph.id }}" value="{{ ph.title }}" maxlength="120" placeholder="Nome no cardápio (vazio = foto do trabalho)" aria-label="Nome no cardápio">
+      <input form="provider-form" name="section-{{ ph.id }}" value="{{ ph.section }}" maxlength="60" placeholder="Seção, ex.: Sobremesas" aria-label="Seção do cardápio" list="menu-sections">
+    </div>
     <div class="photo-actions">
       {% if not loop.first %}
       <form method="post" action="{{ url_for('admin_provider_photo', pid=p.id, fid=ph.id, action='capa') }}">
@@ -63,6 +72,8 @@
   </li>
   {% endfor %}
 </ul>
+<datalist id="menu-sections">{% for name in p.photos|map(attribute='section')|select|unique %}<option value="{{ name }}">{% endfor %}</datalist>
+<p class="muted small">Mudou nome ou seção? Clique em Salvar lá em cima.</p>
 {% endif %}
 
 {% if p %}

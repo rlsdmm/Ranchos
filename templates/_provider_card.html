@@ -8,7 +8,7 @@
       <div class="pcard-avatar noimg" aria-hidden="true">{{ SERVICES[p.service_list[0]][1] if p.service_list else '🙂' }}</div>
     {% endif %}
     <div>
-      <h3>{{ p.name }}</h3>
+      <h3><a class="pcard-name" href="{{ url_for('provider_page', slug=p.slug, rancho=rancho.slug if rancho else None) }}">{{ p.name }}</a></h3>
       <p class="pcard-tags">{% for k in p.service_list %}<span>{{ SERVICES[k][1] }} {{ SERVICES[k][0] }}</span>{% endfor %}</p>
     </div>
   </div>
@@ -16,11 +16,12 @@
   {% if full and p.description %}
     <div class="pcard-desc">{% for para in p.description.split('\n') if para.strip() %}<p>{{ para }}</p>{% endfor %}</div>
   {% endif %}
-  {% if full and p.photos|length > 1 %}
+  {% set work = p.work_photos %}
+  {% if full and work %}
     <ul class="pcard-photos">
-      {% for ph in p.photos[1:7] %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
+      {% for ph in work[:6] %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
     </ul>
-    {% set rest = p.photos[7:] %}
+    {% set rest = work[6:] %}
     {% if rest %}
     <details class="pcard-more">
       <summary>+{{ rest|length }} foto{{ 's' if rest|length > 1 }}</summary>
@@ -29,6 +30,13 @@
       </ul>
     </details>
     {% endif %}
+  {% endif %}
+  {% set menu = p.menu %}
+  {% if menu %}
+  <a class="pcard-menu" href="{{ url_for('provider_page', slug=p.slug, rancho=rancho.slug if rancho else None) }}#cardapio">
+    <span class="pcard-menu-pics">{% for ph in menu[:3] %}<img src="{{ ph.url('t') }}" alt="" loading="lazy">{% endfor %}</span>
+    Ver cardápio ({{ menu|length }} {{ 'itens' if menu|length > 1 else 'item' }}) →
+  </a>
   {% endif %}
   <p class="pcard-price">{{ p.price_text or 'Valores a combinar' }}</p>
   {% if p.whatsapp_digits %}

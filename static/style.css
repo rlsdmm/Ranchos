@@ -682,3 +682,41 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .photo-area { display: flex; align-items: center; gap: 6px; padding: 8px 8px 0; margin: 0; }
 .photo-area select { flex: 1; min-width: 0; font-size: 14px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--papel); }
 .photo-area-ok { width: 1.2em; color: var(--rio-2); font-weight: 800; }
+
+/* Página do profissional e cardápio (/servicos/<slug>) */
+.pcard-name { color: inherit; text-decoration: none; }
+.pcard-name:hover { text-decoration: underline; }
+.pcard-menu { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r); background: var(--rio-soft); color: var(--rio); font-weight: 700; text-decoration: none; }
+.pcard-menu:hover { background: var(--line); }
+.pcard-menu-pics { display: flex; flex: none; }
+.pcard-menu-pics img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--card); margin-right: -10px; }
+.pcard-menu-pics img:last-child { margin-right: 0; }
+.provider-head { margin-top: 6px; }
+.provider-head .pcard-avatar { width: 96px; height: 96px; }
+.provider-head h1 { margin: 0; }
+.provider-desc { max-width: 62ch; margin-top: 12px; }
+.provider-desc p { font-size: 16px; }
+.provider-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 20px 0 0; }
+.menu { margin-top: 36px; }
+.menu h2 { font-size: 26px; font-weight: 800; }
+.menu-nav { position: sticky; top: 0; z-index: 2; flex-wrap: nowrap; overflow-x: auto; padding: 10px 0; margin: 4px 0 0; background: var(--papel); scrollbar-width: none; }
+.menu-sec { font-size: 20px; font-weight: 750; margin: 26px 0 0; scroll-margin-top: 64px; }
+.menu-grid { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.menu-item { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
+.menu-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
+.menu-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.menu-body h4 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; }
+.menu-ask { margin-top: auto; align-self: flex-start; color: var(--zap-deep); font-weight: 700; font-size: 15px; text-decoration: none; }
+.menu-ask::before { content: "💬 "; }
+.menu-ask:hover { text-decoration: underline; }
+.provider-photos { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-top: 14px; }
+@media (max-width: 640px) {
+  .menu-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .menu-body { padding: 10px; }
+  .menu-body h4 { font-size: 15px; }
+  .menu-ask { font-size: 14px; }
+}
+
+/* Painel: nome e seção do item do cardápio */
+.photo-menu { display: grid; gap: 6px; padding: 8px; }
+.photo-menu input { width: 100%; font-size: 14px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--papel); }

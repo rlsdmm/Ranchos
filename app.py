@@ -377,6 +377,23 @@ class Provider(db.Model):
     def cover(self):
         return self.photos[0] if self.photos else None
 
+    @property
+    def menu(self):
+        return [ph for ph in self.photos if ph.title]
+
+    @property
+    def work_photos(self):
+        """Fotos do trabalho (sem as do cardápio), sem a do card."""
+        return [ph for ph in self.photos[1:] if not ph.title]
+
+    @property
+    def menu_sections(self):
+        """[(seção, [itens])] na ordem em que a seção aparece pela primeira vez."""
+        sections = {}
+        for ph in self.menu:
+            sections.setdefault(ph.section or "", []).append(ph)
+        return list(sections.items())
+
 
 class ProviderPhoto(db.Model):
     """Mesmo esquema de Photo (WebP no Bunny ou no banco); a primeira é a foto do card."""
@@ -387,6 +404,9 @@ class ProviderPhoto(db.Model):
     height = db.Column(db.Integer, default=0)
     etag = db.Column(db.String(40), default="")
     cdn_key = db.Column(db.String(120), default="")
+    # Com nome, a foto é um item do cardápio (/servicos/<slug>); sem nome, é foto do trabalho.
+    title = db.Column(db.String(120), default="")
+    section = db.Column(db.String(60), default="")  # "Sobremesas"; vazio = sem seção
     full = deferred(db.Column(db.LargeBinary, nullable=False))
     thumb = deferred(db.Column(db.LargeBinary, nullable=False))
 
@@ -445,6 +465,8 @@ with app.app_context():
         ("event", "provider_id", "INTEGER REFERENCES provider(id) ON DELETE CASCADE"),
         ("rancho", "verified_at", "TIMESTAMP"),
         ("photo", "area", "VARCHAR(20) DEFAULT ''"),
+        ("provider_photo", "title", "VARCHAR(120) DEFAULT ''"),
+        ("provider_photo", "section", "VARCHAR(60) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -665,7 +687,7 @@ def log_event(rancho_id, kind, provider_id=None):
 # Origem das visitas
 # ---------------------------------------------------------------------------
 # Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
-LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "about", "safety_guide"}
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "provider_page", "about", "safety_guide"}
 # Site de onde veio (pelo Referer) -> nome da origem
 REFERRER_SOURCES = [
     (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
@@ -1417,16 +1439,29 @@ def services():
                            rancho=rancho if rancho and rancho.public else None)
 
 
+@app.route("/servicos/<slug>")
+def provider_page(slug):
+    """Página do profissional, com o cardápio quando ele tem."""
+    p = Provider.query.filter_by(slug=slug, active=True).first_or_404()
+    rancho = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
+    return render_template("provider.html", p=p, rancho=rancho if rancho and rancho.public else None)
+
+
 @app.route("/servicos/<slug>/whatsapp")
 def provider_whatsapp(slug):
     p = Provider.query.filter_by(slug=slug, active=True).first_or_404()
     if not p.whatsapp_digits:
         abort(404)
     r = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
+    item = next((ph for ph in p.menu if str(ph.id) == request.args.get("item")), None)
     log_event(r.id if r else None, "prestador", provider_id=p.id)
     stay = f" Vou ficar no {r.name}." if r else ""
-    msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
-           f"Gostaria de saber sobre seus serviços para as datas: ")
+    if item:
+        msg = (f"Olá, {p.name.split()[0]}! Vi seu cardápio no site {SITE_NAME} e quero saber sobre: "
+               f"{item.title}.{stay} As datas são: ")
+    else:
+        msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
+               f"Gostaria de saber sobre seus serviços para as datas: ")
     return redirect(f"https://wa.me/{p.whatsapp_digits}?text={quote(msg)}")
 
 
@@ -1513,8 +1548,11 @@ def sitemap():
         urls.append((f"{base}/ranchos/{slug}", None))
     for r in ranchos:
         urls.append((f"{base}/rancho/{r.slug}", r.updated_at))
-    if Provider.query.filter_by(active=True).first():
+    providers = Provider.query.filter_by(active=True).all()
+    if providers:
         urls.append((f"{base}/servicos", None))
+    for p in providers:
+        urls.append((f"{base}/servicos/{p.slug}", p.updated_at))
     items = "".join(
         f"<url><loc>{u}</loc>{f'<lastmod>{d:%Y-%m-%d}</lastmod>' if d else ''}</url>" for u, d in urls)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
@@ -1772,8 +1810,18 @@ def fill_rancho(r, form):
     return False
 
 
-def save_uploads(r, files, photo_cls=None):
-    """Fotos novas no fim da lista de r (rancho ou profissional)."""
+def menu_title_from_filename(filename):
+    """'03 Sobremesas - Pavê de chocolate.jpg' -> ('Sobremesas', 'Pavê de chocolate')."""
+    name = os.path.splitext(os.path.basename(filename or ""))[0]
+    name = re.sub(r"^\s*\d+\s*[-._)]?\s*", "", name).replace("_", " ").strip()
+    section, _, title = name.rpartition(" - ")
+    title = title.strip() or name
+    return section.strip()[:60], (title[:1].upper() + title[1:])[:120]
+
+
+def save_uploads(r, files, photo_cls=None, menu=False):
+    """Fotos novas no fim da lista de r (rancho ou profissional).
+    menu=True: fotos do cardápio de um profissional; o nome do arquivo vira o nome do item."""
     photo_cls = photo_cls or Photo
     added, skipped = 0, 0
     pos = max([p.position for p in r.photos] + [-1]) + 1
@@ -1793,8 +1841,10 @@ def save_uploads(r, files, photo_cls=None):
             key = f"{BUNNY_PREFIX}/{folder}/{etag}-{secrets.token_hex(3)}"
             bunny_upload(key, full, thumb)
             full = thumb = b""
-        r.photos.append(photo_cls(position=pos, width=w, height=h, full=full, thumb=thumb,
-                                  etag=etag, cdn_key=key))
+        photo = photo_cls(position=pos, width=w, height=h, full=full, thumb=thumb, etag=etag, cdn_key=key)
+        if menu:
+            photo.section, photo.title = menu_title_from_filename(f.filename)
+        r.photos.append(photo)
         pos += 1
         added += 1
     return added, skipped
@@ -2049,7 +2099,13 @@ def admin_provider(pid=None):
         db.session.flush()
         if p.name != old_name:
             p.slug = unique_slug(p.name, exclude_id=p.id, model=Provider)
+        for ph in p.photos:
+            if f"title-{ph.id}" in f:
+                ph.title = f.get(f"title-{ph.id}", "").strip()[:120]
+                ph.section = f.get(f"section-{ph.id}", "").strip()[:60]
         added, skipped = save_uploads(p, request.files.getlist("photos"), ProviderPhoto)
+        added_menu, skipped_menu = save_uploads(p, request.files.getlist("menu_photos"), ProviderPhoto, menu=True)
+        added, skipped = added + added_menu, skipped + skipped_menu
         db.session.commit()
         msg = "Profissional salvo."
         if added:

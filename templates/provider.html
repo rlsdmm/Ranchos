@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set first = p.name.split()[0] %}
+{% set menu = p.menu %}
+{% block title %}{% if menu %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %}{% if p.service_list %}, {{ SERVICES[p.service_list[0]][0]|lower }}{% endif %} em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}{{ p.summary or p.name }}{% if menu %} Veja o cardápio com fotos: {{ menu[:4]|map(attribute='title')|join(', ') }} e mais.{% endif %} Fale direto pelo WhatsApp.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('provider_page', slug=p.slug) }}">
+  <meta property="og:title" content="{% if menu %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %} | {{ SITE_NAME }}">
+  <meta property="og:description" content="{{ p.summary or ('Serviços para a sua estadia em ' ~ CITY_NAME) }}">
+  <meta property="og:type" content="website">
+  {% if p.cover %}<meta property="og:image" content="{{ p.cover.url(absolute=True) }}">{% endif %}
+{% endblock %}
+{% block content %}
+<article class="wrap cat-page provider-page">
+  <nav class="crumbs"><a href="{{ url_for('services', rancho=rancho.slug if rancho else None) }}">← Serviços</a></nav>
+
+  <header class="pcard-head provider-head">
+    {% if p.cover %}
+      <img class="pcard-avatar" src="{{ p.cover.url('t') }}" alt="{{ p.name }}" width="96" height="96">
+    {% else %}
+      <div class="pcard-avatar noimg" aria-hidden="true">{{ SERVICES[p.service_list[0]][1] if p.service_list else '🙂' }}</div>
+    {% endif %}
+    <div>
+      <h1>{{ p.name }}</h1>
+      <p class="pcard-tags">{% for k in p.service_list %}<span>{{ SERVICES[k][1] }} {{ SERVICES[k][0] }}</span>{% endfor %}</p>
+    </div>
+  </header>
+
+  {% if p.summary %}<p class="cat-intro">{{ p.summary }}</p>{% endif %}
+  {% if p.description %}
+    <div class="pcard-desc provider-desc">{% for para in p.description.split('\n') if para.strip() %}<p>{{ para }}</p>{% endfor %}</div>
+  {% endif %}
+
+  {% if p.whatsapp_digits %}
+  <p class="provider-cta">
+    <a class="btn btn-zap" href="{{ url_for('provider_whatsapp', slug=p.slug, rancho=rancho.slug if rancho else None) }}" rel="nofollow">Chamar {{ first }} no WhatsApp</a>
+    <span class="muted small">{{ p.price_text or 'Valores a combinar' }}</span>
+  </p>
+  {% endif %}
+
+  {% if menu %}
+  <section class="menu" aria-labelledby="cardapio">
+    <h2 id="cardapio">Cardápio</h2>
+    {% set sections = p.menu_sections %}
+    {% if sections|length > 1 %}
+    <nav class="chips menu-nav" aria-label="Seções do cardápio">
+      {% for name, items in sections %}<a class="chip-link" href="#sec-{{ loop.index }}">{{ name or 'Outros' }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+    {% for name, items in sections %}
+      {% if sections|length > 1 %}<h3 class="menu-sec" id="sec-{{ loop.index }}">{{ name or 'Outros' }}</h3>{% endif %}
+      <ul class="menu-grid">
+        {% for ph in items %}
+        <li class="menu-item">
+          <a class="menu-photo" href="{{ ph.url() }}" target="_blank" rel="noopener">
+            <img src="{{ ph.url('t') }}" alt="{{ ph.title }}" loading="lazy" width="{{ ph.width }}" height="{{ ph.height }}">
+          </a>
+          <div class="menu-body">
+            <h4>{{ ph.title }}</h4>
+            {% if p.whatsapp_digits %}
+            <a class="menu-ask" href="{{ url_for('provider_whatsapp', slug=p.slug, item=ph.id, rancho=rancho.slug if rancho else None) }}" rel="nofollow">Pedir pelo WhatsApp</a>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% set work = p.work_photos %}
+  {% if work %}
+  <section class="menu">
+    <h2>Fotos do trabalho</h2>
+    <ul class="pcard-photos provider-photos">
+      {% for ph in work %}<li><a href="{{ ph.url() }}" target="_blank" rel="noopener"><img src="{{ ph.url('t') }}" alt="Foto do trabalho de {{ p.name }}" loading="lazy"></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}
