@@ -714,6 +714,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .menu h2 { font-size: 26px; font-weight: 800; }
 .menu-nav { position: sticky; top: 0; z-index: 2; flex-wrap: nowrap; overflow-x: auto; padding: 10px 0; margin: 4px 0 0; background: var(--papel); scrollbar-width: none; }
 .menu-sec { font-size: 20px; font-weight: 750; margin: 26px 0 0; scroll-margin-top: 64px; }
+/* Celular: todas as seções à vista, em até duas linhas, sem precisar arrastar */
+@media (max-width: 760px) {
+  .menu-nav { flex-wrap: wrap; overflow: visible; gap: 8px 6px; }
+  .menu-nav .chip-link { padding: 7px 13px; font-size: 14px; }
+  .menu-sec { scroll-margin-top: 112px; }
+}
 .menu-grid { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .menu-item { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
 .menu-photo, .work-photo { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }

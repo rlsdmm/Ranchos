@@ -48,7 +48,8 @@
     {% set sections = p.menu_sections %}
     {% if sections|length > 1 %}
     <nav class="chips menu-nav" aria-label="Seções do cardápio">
-      {% for name, items in sections %}<a class="chip-link" href="#sec-{{ loop.index }}">{{ name or 'Outros' }}</a>{% endfor %}
+      {# No celular só a parte antes do " e " ("Porções e petiscos" -> "Porções"), para caber sem arrastar #}
+      {% for name, items in sections %}{% set full = name or 'Outros' %}{% set short = full.split(' e ')[0] %}<a class="chip-link" href="#sec-{{ loop.index }}">{% if short != full %}<span class="nav-long">{{ full }}</span><span class="nav-short">{{ short }}</span>{% else %}{{ full }}{% endif %}</a>{% endfor %}
     </nav>
     {% endif %}
     {% for name, items in sections %}
