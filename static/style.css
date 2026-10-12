@@ -703,6 +703,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pcard-menu-pics { display: flex; flex: none; }
 .pcard-menu-pics img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--card); margin-right: -10px; }
 .pcard-menu-pics img:last-child { margin-right: 0; }
+.provider-page { padding-bottom: 56px; }
 .provider-head { margin-top: 6px; }
 .provider-head .pcard-avatar { width: 96px; height: 96px; }
 .provider-head h1 { margin: 0; }
