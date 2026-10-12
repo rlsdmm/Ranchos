@@ -719,17 +719,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .work-photo { border-radius: 10px; overflow: hidden; }
 .menu-photo:focus-visible, .work-photo:focus-visible { outline: 3px solid var(--sol); outline-offset: -3px; }
 .menu-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
-.menu-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.menu-body { padding: 12px 14px 14px; flex: 1; }
 .menu-body h4 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.25; }
-.menu-ask { margin-top: auto; align-self: flex-start; color: var(--zap-deep); font-weight: 700; font-size: 15px; text-decoration: none; }
-.menu-ask::before { content: "💬 "; content: "💬 " / ""; }
-.menu-ask:hover { text-decoration: underline; }
 .provider-photos { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-top: 14px; }
 @media (max-width: 640px) {
   .menu-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .menu-body { padding: 10px; }
   .menu-body h4 { font-size: 15px; }
-  .menu-ask { font-size: 14px; }
 }
 
 /* Painel: nome e seção do item do cardápio */

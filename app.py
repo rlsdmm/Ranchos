@@ -1453,15 +1453,10 @@ def provider_whatsapp(slug):
     if not p.whatsapp_digits:
         abort(404)
     r = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
-    item = next((ph for ph in p.menu if str(ph.id) == request.args.get("item")), None)
     log_event(r.id if r else None, "prestador", provider_id=p.id)
     stay = f" Vou ficar no {r.name}." if r else ""
-    if item:
-        msg = (f"Olá, {p.name.split()[0]}! Vi seu cardápio no site {SITE_NAME} e quero saber sobre: "
-               f"{item.title}.{stay} As datas são: ")
-    else:
-        msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
-               f"Gostaria de saber sobre seus serviços para as datas: ")
+    msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
+           f"Gostaria de saber sobre seus serviços para as datas: ")
     return redirect(f"https://wa.me/{p.whatsapp_digits}?text={quote(msg)}")
 
 

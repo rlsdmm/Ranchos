@@ -61,9 +61,6 @@
           </button>
           <div class="menu-body">
             <h4>{{ ph.title }}</h4>
-            {% if p.whatsapp_digits %}
-            <a class="menu-ask" href="{{ url_for('provider_whatsapp', slug=p.slug, item=ph.id, rancho=rancho.slug if rancho else None) }}" rel="nofollow" aria-label="Pedir {{ ph.title }} pelo WhatsApp">Pedir pelo WhatsApp</a>
-            {% endif %}
           </div>
         </li>
         {% endfor %}
