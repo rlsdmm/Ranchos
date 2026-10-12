@@ -139,6 +139,15 @@
     <img src="{{ p.url('t') }}" alt="" loading="lazy" draggable="false">
     <span class="badge badge-sun badge-capa">Capa</span>
     <button type="button" class="drag-handle" aria-label="Arrastar para reordenar" title="Arrastar para reordenar">⠿</button>
+    <form method="post" action="{{ url_for('admin_photo_area', rid=r.id, pid=p.id) }}" class="photo-area">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <select name="area" aria-label="Ambiente da foto">
+        <option value="">Ambiente…</option>
+        {% for key, label in PHOTO_AREAS.items() %}<option value="{{ key }}" {% if p.area == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <span class="photo-area-ok" aria-live="polite"></span>
+      <noscript><button>Salvar</button></noscript>
+    </form>
     <div class="photo-actions">
       {% for action, label in [('esquerda', '←'), ('direita', '→'), ('capa', 'Capa'), ('excluir', 'Excluir')] %}
         <form method="post" action="{{ url_for('admin_photo', rid=r.id, pid=p.id, action=action) }}" class="act-{{ action }}" {% if action == 'excluir' %}data-confirm="Excluir esta foto?"{% endif %}>

@@ -166,6 +166,11 @@ CATEGORIES = {
               "Confira quartos, camas e o valor do fim de semana de cada um."),
 }
 LIST_MAX = 12  # ranchos numa lista para o grupo
+# Ambientes das fotos: viram botões na galeria do rancho (só os que têm foto aparecem).
+PHOTO_AREAS = {
+    "externa": "Área externa", "piscina": "Piscina", "gourmet": "Área gourmet", "lazer": "Sala e lazer",
+    "quartos": "Quartos", "banheiros": "Banheiros", "rio": "Rio e píer", "quadras": "Parquinho e quadras",
+}
 NEW_DAYS = 30           # selo "Novo" nos ranchos que entraram há menos tempo que isso...
 NEW_MAX = 3             # ...mas só nos mais recentes: com o site começando, todos seriam novos
 FRESH_AGENDA_DAYS = 30  # agenda mais velha que isso não aparece como "atualizada" no card
@@ -331,6 +336,7 @@ class Photo(db.Model):
     # Caminho no Bunny sem o sufixo (-f.webp / -t.webp). Vazio = a foto está nas colunas abaixo,
     # que então ficam com b"" (não dá para tirar o NOT NULL no SQLite sem recriar a tabela).
     cdn_key = db.Column(db.String(120), default="")
+    area = db.Column(db.String(20), default="")  # ambiente (PHOTO_AREAS); vazio = só em "Todas"
     full = deferred(db.Column(db.LargeBinary, nullable=False))
     thumb = deferred(db.Column(db.LargeBinary, nullable=False))
 
@@ -438,6 +444,7 @@ with app.app_context():
         ("rancho", "ical_error", "VARCHAR(200) DEFAULT ''"),
         ("event", "provider_id", "INTEGER REFERENCES provider(id) ON DELETE CASCADE"),
         ("rancho", "verified_at", "TIMESTAMP"),
+        ("photo", "area", "VARCHAR(20) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -979,7 +986,7 @@ def counts_since(since, rancho_id=None):
 @app.context_processor
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
-                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
+                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year)
 
 
@@ -1340,7 +1347,13 @@ def rancho(slug):
     faq = rancho_faq(r)
     lds = [breadcrumb_ld(("Ranchos", "/"), (r.name, f"/rancho/{r.slug}")), faq_ld(faq)]
     months = calendar_months(busy_set(r)) if r.calendar_updated_at else None
+    counts = {}
+    for p in r.photos:
+        if p.area in PHOTO_AREAS:
+            counts[p.area] = counts.get(p.area, 0) + 1
+    areas = [(k, label, counts[k]) for k, label in PHOTO_AREAS.items() if k in counts]
     return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
+                           areas=areas if len(areas) > 1 else [],
                            providers=public_providers()[:3])
 
 
@@ -1911,6 +1924,20 @@ def admin_photo(rid, pid, action):
         x.position = i
     db.session.commit()
     bunny_delete(gone)
+    return redirect(url_for("admin_edit", rid=rid) + "#fotos")
+
+
+@app.route("/admin/rancho/<int:rid>/foto/<int:pid>/ambiente", methods=["POST"])
+@panel_required
+def admin_photo_area(rid, pid):
+    """Ambiente da foto (piscina, quartos...). Responde JSON para a página não recarregar."""
+    r = editable_rancho(rid)
+    p = next((x for x in r.photos if x.id == pid), None) or abort(404)
+    area = request.form.get("area", "")
+    p.area = area if area in PHOTO_AREAS else ""
+    db.session.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return {"ok": True}
     return redirect(url_for("admin_edit", rid=rid) + "#fotos")
 
 

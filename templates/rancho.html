@@ -39,12 +39,19 @@
   {% if r.photos %}
   <div class="gallery g-n{{ [r.photos|length, 5]|min }}" data-gallery>
     {% for p in r.photos %}
-      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
+      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" data-area="{{ p.area or '' }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
         <img src="{{ p.url(('f' if loop.first else 't')) }}" alt="{{ r.name }} em {{ CITY_NAME }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
       </button>
     {% endfor %}
     {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
   </div>
+  {% if areas %}
+  {# Botões por ambiente: abrem as fotos daquele ambiente em tela cheia #}
+  <div class="photo-areas" role="group" aria-label="Fotos por ambiente">
+    <button type="button" class="area-chip" data-area-open="">Todas <span>{{ r.photos|length }}</span></button>
+    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-open="{{ key }}">{{ label }} <span>{{ n }}</span></button>{% endfor %}
+  </div>
+  {% endif %}
   {% endif %}
 
   <div class="rancho-grid">
@@ -215,6 +222,12 @@
 {% endif %}
 
 <div class="lightbox" id="lightbox" hidden>
+  {% if areas %}
+  <div class="lb-areas" role="group" aria-label="Fotos por ambiente">
+    <button type="button" class="area-chip" data-area-tab="">Todas</button>
+    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-tab="{{ key }}">{{ label }}</button>{% endfor %}
+  </div>
+  {% endif %}
   <button class="lb-close" aria-label="Fechar">×</button>
   <button class="lb-prev" aria-label="Foto anterior">‹</button>
   <img alt="">

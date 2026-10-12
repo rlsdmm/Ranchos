@@ -156,14 +156,17 @@
     });
   }
 
-  // Gallery lightbox
+  // Gallery lightbox. Com ambientes (piscina, quartos...), mostra só as fotos do ambiente escolhido.
   const gallery = document.querySelector('[data-gallery]');
   const lb = document.getElementById('lightbox');
   if (gallery && lb) {
-    const items = [...gallery.querySelectorAll('[data-full]')];
+    const all = [...gallery.querySelectorAll('[data-full]')];
     const img = lb.querySelector('img');
     const count = lb.querySelector('.lb-count');
+    const tabs = [...lb.querySelectorAll('[data-area-tab]')];
+    let items = all;
     let i = 0;
+    let opener = null;
     let startX = null;
     const show = (n) => {
       i = (n + items.length) % items.length;
@@ -171,9 +174,24 @@
       img.alt = items[i].querySelector('img').alt;
       count.textContent = `${i + 1} / ${items.length}`;
     };
-    const open = (n) => { show(n); lb.hidden = false; document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
-    const close = () => { lb.hidden = true; document.body.style.overflow = ''; items[i].focus(); };
-    items.forEach((el, n) => el.addEventListener('click', () => open(n)));
+    const setArea = (area) => {
+      items = area ? all.filter((el) => el.dataset.area === area) : all;
+      tabs.forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.areaTab === area)));
+    };
+    const open = (area, el) => {
+      setArea(area);
+      show(el ? Math.max(items.indexOf(el), 0) : 0);
+      lb.hidden = false;
+      document.body.style.overflow = 'hidden';
+      lb.querySelector('.lb-close').focus();
+    };
+    const close = () => { lb.hidden = true; document.body.style.overflow = ''; (opener || items[i]).focus(); };
+    all.forEach((el) => el.addEventListener('click', () => { opener = el; open('', el); }));
+    document.querySelectorAll('[data-area-open]').forEach((b) => b.addEventListener('click', () => {
+      opener = b;
+      open(b.dataset.areaOpen);
+    }));
+    tabs.forEach((t) => t.addEventListener('click', () => { setArea(t.dataset.areaTab); show(0); }));
     lb.querySelector('.lb-close').addEventListener('click', close);
     lb.querySelector('.lb-prev').addEventListener('click', () => show(i - 1));
     lb.querySelector('.lb-next').addEventListener('click', () => show(i + 1));
@@ -192,6 +210,21 @@
       startX = null;
     });
   }
+
+  // Painel: ambiente da foto salva sozinho ao escolher
+  document.querySelectorAll('form.photo-area select').forEach((sel) => {
+    sel.addEventListener('change', async () => {
+      const form = sel.form;
+      const ok = form.querySelector('.photo-area-ok');
+      ok.textContent = '…';
+      try {
+        const resp = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'fetch' } });
+        ok.textContent = resp.ok ? '✓' : 'erro';
+      } catch (e) {
+        ok.textContent = 'erro';
+      }
+    });
+  });
 
   // Confirm before destructive admin actions
   document.querySelectorAll('form[data-confirm]').forEach((f) => {

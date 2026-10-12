@@ -659,3 +659,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .results-updated { margin: 0; }
 .tips .tips-more { background: none; padding: 4px 0 0; }
 .tips .tips-more::before { display: none; }
+
+/* fotos por ambiente (página do rancho e tela cheia) */
+.photo-areas { display: flex; gap: 8px; margin: 12px 0 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.photo-areas::-webkit-scrollbar { display: none; }
+.area-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.area-chip:hover { border-color: var(--rio-2); }
+.area-chip span { background: var(--rio-soft); color: var(--rio); border-radius: 999px; padding: 0 7px; font-size: 13px; }
+.lb-areas { position: absolute; top: 16px; left: 16px; right: 84px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.lb-areas::-webkit-scrollbar { display: none; }
+.lightbox .lb-areas .area-chip {
+  position: static; width: auto; height: auto; font-size: 14px; line-height: 1.3; border-radius: 999px;
+  padding: 7px 14px; background: rgba(255,255,255,.12); border: 0; color: #fff;
+}
+.lightbox .lb-areas .area-chip[aria-pressed="true"] { background: #fff; color: var(--ink); }
+.lightbox:has(.lb-areas) img { max-height: 76vh; }
+@media (max-width: 640px) { .photo-areas { margin-inline: -20px; padding-inline: 20px; } .lb-areas { left: 12px; right: 76px; top: 18px; } }
+
+/* painel: ambiente de cada foto */
+.photo-area { display: flex; align-items: center; gap: 6px; padding: 8px 8px 0; margin: 0; }
+.photo-area select { flex: 1; min-width: 0; font-size: 14px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--papel); }
+.photo-area-ok { width: 1.2em; color: var(--rio-2); font-weight: 800; }
