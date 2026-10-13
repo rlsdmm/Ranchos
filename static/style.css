@@ -591,7 +591,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
       var(--rio);
   }
   .filters { padding: 14px; }
-  .fsel select { padding: 9px 10px; font-size: 15px; }
+  /* 16px: com menos que isso o iPhone dá zoom na página ao tocar no campo */
+  .fsel select { padding: 9px 10px; font-size: 16px; }
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { flex: none; }
@@ -793,3 +794,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lightbox { touch-action: none; overscroll-behavior: contain; transition: background-color .2s; }
 .lightbox img { will-change: transform; user-select: none; -webkit-user-drag: none; }
 .lightbox button[hidden] { display: none; }
+
+/* Celular: área de toque mínima nos links e botões pequenos (achados na revisão do celular) */
+@media (max-width: 760px) {
+  .fav-inline { padding: 10px 16px; }                                  /* "Salvar na lista": 29px -> 40px */
+  .crumbs a { display: inline-block; padding: 10px 0; margin: -10px 0; } /* "← Todos os ranchos" */
+  .footer-links { gap: 2px; }
+  .footer-links a { display: block; padding: 9px 0; }                  /* links do rodapé: 25px -> 43px */
+}
