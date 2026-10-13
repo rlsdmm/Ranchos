@@ -1,17 +1,33 @@
 {% extends "admin/base.html" %}
+{% set admin = is_admin() %}
 {% block title %}{{ p.name if p else 'Novo profissional' }}{% endblock %}
 {% block content %}
 <div class="edit-head">
-  <h1>{{ p.name if p else 'Novo profissional' }}</h1>
-  <div class="actions"><a href="{{ url_for('admin_providers') }}">← Serviços</a>{% if p %}<a href="{{ url_for('provider_page', slug=p.slug) }}" target="_blank">Ver no site ↗</a>{% endif %}</div>
+  <h1>{% if p and not admin %}Olá, {{ p.name.split()[0] }}!{% else %}{{ p.name if p else 'Novo profissional' }}{% endif %}</h1>
+  <div class="actions">{% if admin %}<a href="{{ url_for('admin_providers') }}">← Serviços</a>{% endif %}{% if p %}<a href="{{ url_for('provider_page', slug=p.slug) }}" target="_blank">Ver no site ↗</a>{% endif %}</div>
 </div>
+{% if p and not admin %}<p class="muted">Aqui você mexe no seu anúncio e no seu cardápio. O que salvar aparece no site em até 1 minuto.</p>{% endif %}
 
 <form method="post" enctype="multipart/form-data" class="form edit-form" id="provider-form">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
 
+  {% if p %}
+  <fieldset id="novo-item" class="new-item">
+    <legend>Adicionar ao cardápio</legend>
+    <label class="upload">
+      <input type="file" name="new_item_photo" accept="image/*">
+      <span>📷 Escolher foto</span>
+    </label>
+    <label>Nome <input name="new_item_title" maxlength="120" placeholder="Ex.: Pavê de chocolate"></label>
+    <label>Seção <input name="new_item_section" maxlength="60" list="menu-sections" placeholder="Ex.: Sobremesas"></label>
+    <button class="btn btn-sun">Adicionar</button>
+  </fieldset>
+  {% endif %}
+
   <fieldset>
     <legend>Anúncio</legend>
-    <label>Nome <input name="name" required maxlength="120" value="{{ p.name if p else '' }}" placeholder="Maria"></label>
+    <label>Nome <input name="name" required maxlength="120" value="{{ p.name if p else '' }}" placeholder="Maria" {% if not admin %}readonly{% endif %}>
+      {% if not admin %}<small class="muted">Para mudar o nome, fale com a gente.</small>{% endif %}</label>
     <p class="small strong">O que faz</p>
     <div class="amen-grid">
       {% for k, (label, icon) in SERVICES.items() %}
@@ -24,32 +40,44 @@
     <label>WhatsApp com DDD <input name="whatsapp" maxlength="30" value="{{ p.whatsapp if p else '' }}" placeholder="(16) 99999-9999"></label>
   </fieldset>
 
+  {% if admin %}
   <fieldset>
     <legend>Publicação</legend>
     <label class="check"><input type="checkbox" name="active" {% if not p or p.active %}checked{% endif %}> Aparece no site</label>
     <label>Pago até <span class="muted">(ou fim do período grátis)</span>
       <input type="date" name="paid_until" value="{{ (p.paid_until.isoformat() if p.paid_until else '') if p else trial_end.isoformat() }}">
     </label>
+    <label>Conta que pode editar <span class="muted">(crie em <a class="link" href="{{ url_for('admin_owners') }}">Donos</a>)</span>
+      <select name="owner_id">
+        <option value="">Ninguém, só o admin</option>
+        {% for o in owners %}<option value="{{ o.id }}" {% if p and p.owner_id == o.id %}selected{% endif %}>{{ o.name or o.login }} ({{ o.login }})</option>{% endfor %}
+      </select>
+    </label>
   </fieldset>
+  {% endif %}
 
   <fieldset id="fotos">
     <legend>Fotos</legend>
     <label class="upload">
       <input type="file" name="photos" accept="image/*" multiple>
-      <span>Escolher fotos</span>
+      <span>{{ 'Foto do card ou do trabalho' if p else 'Escolher fotos' }}</span>
       <small class="muted">A primeira é a foto do card (de preferência o rosto). As outras aparecem como fotos do trabalho.</small>
     </label>
+    {% if admin %}
     <label class="upload">
       <input type="file" name="menu_photos" accept="image/*" multiple>
-      <span>Fotos do cardápio</span>
-      <small class="muted">O nome do arquivo vira o nome do item. Para já cair numa seção, use "Seção - Nome", ex.: <b>Sobremesas - Pavê de chocolate.jpg</b>. Dá para corrigir depois embaixo de cada foto: foto com nome entra no cardápio.</small>
+      <span>Várias fotos do cardápio de uma vez</span>
+      <small class="muted">O nome do arquivo vira o nome do item. Para já cair numa seção, use "Seção - Nome", ex.: <b>Sobremesas - Pavê de chocolate.jpg</b>.</small>
     </label>
+    {% endif %}
   </fieldset>
 
   <div class="sticky-save"><button class="btn btn-sun">Salvar</button></div>
 </form>
 
 {% if p and p.photos %}
+<h2 class="photo-grid-title">Seu cardápio e fotos</h2>
+<p class="muted small">Foto com nome entra no cardápio; sem nome, é foto do trabalho. Mudou nome ou seção? Clique em Salvar.</p>
 <ul class="photo-grid">
   {% for ph in p.photos %}
   <li>
@@ -72,11 +100,10 @@
   </li>
   {% endfor %}
 </ul>
-<datalist id="menu-sections">{% for name in p.photos|map(attribute='section')|select|unique %}<option value="{{ name }}">{% endfor %}</datalist>
-<p class="muted small">Mudou nome ou seção? Clique em Salvar lá em cima.</p>
 {% endif %}
+{% if p %}<datalist id="menu-sections">{% for name in p.photos|map(attribute='section')|select|unique %}<option value="{{ name }}">{% endfor %}</datalist>{% endif %}
 
-{% if p %}
+{% if p and admin %}
 <form method="post" action="{{ url_for('admin_provider_delete', pid=p.id) }}" class="danger-zone" data-confirm="Excluir {{ p.name }} para sempre? Fotos e estatísticas também serão apagadas.">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <button class="btn btn-outline danger">Excluir profissional</button>

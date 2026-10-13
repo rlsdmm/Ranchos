@@ -738,3 +738,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Painel: nome e seção do item do cardápio */
 .photo-menu { display: grid; gap: 6px; padding: 8px; }
 .photo-menu input { width: 100%; font-size: 14px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--papel); }
+
+/* Painel: adicionar item ao cardápio (pensado para a profissional usar no celular) */
+.new-item { border-color: var(--sol) !important; border-width: 2px !important; }
+.new-item legend { font-weight: 800; }
+.new-item .btn { justify-self: start; }
+.upload-preview { display: block; margin: 12px auto 0; max-height: 180px; border-radius: 10px; }
+.photo-grid-title { font-size: 22px; margin: 28px 0 4px; }
+.list-plain { list-style: none; padding: 0; margin: 8px 0 18px; display: grid; gap: 8px; }

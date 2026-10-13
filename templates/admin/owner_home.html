@@ -42,5 +42,11 @@
     <a class="btn btn-dark" href="{{ url_for('admin_edit') }}">Cadastrar meu rancho</a>
   </div>
 {% endif %}
+{% if owner.providers %}
+<h2>Meus serviços</h2>
+<ul class="list-plain">
+  {% for p in owner.providers %}<li><a class="strong" href="{{ url_for('admin_provider', pid=p.id) }}">{{ p.name }}</a> · <span class="muted small">{{ p.menu|length }} itens no cardápio</span></li>{% endfor %}
+</ul>
+{% endif %}
 <p class="muted small">Rancho novo aparece no site depois que a nossa equipe aprovar. O selo "Verificado" é dado quando visitamos o rancho e confirmamos o contato.</p>
 {% endblock %}

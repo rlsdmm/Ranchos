@@ -211,6 +211,25 @@
     });
   }
 
+  // Painel: mostra o que foi escolhido no campo de foto (no celular, sem isso parece que nada aconteceu)
+  document.querySelectorAll('.upload input[type=file]').forEach((input) => {
+    const label = input.parentElement.querySelector('span');
+    const original = label.textContent;
+    input.addEventListener('change', () => {
+      const files = [...input.files];
+      input.parentElement.querySelector('.upload-preview')?.remove();
+      if (!files.length) { label.textContent = original; return; }
+      label.textContent = files.length === 1 ? '✓ Foto escolhida' : `✓ ${files.length} fotos escolhidas`;
+      if (files.length === 1 && files[0].type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.className = 'upload-preview';
+        img.alt = '';
+        img.src = URL.createObjectURL(files[0]);
+        input.parentElement.appendChild(img);
+      }
+    });
+  });
+
   // Painel: ambiente da foto salva sozinho ao escolher
   document.querySelectorAll('form.photo-area select').forEach((sel) => {
     sel.addEventListener('change', async () => {

@@ -30,7 +30,7 @@ from functools import wraps
 from urllib.parse import quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 
-from flask import (Flask, Response, abort, flash, g, redirect, render_template,
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template,
                    request, session, url_for)
 from flask_sqlalchemy import SQLAlchemy
 from PIL import Image, ImageOps
@@ -300,6 +300,12 @@ class Owner(db.Model):
     last_login = db.Column(db.DateTime)
 
     ranchos = db.relationship("Rancho", backref="owner", order_by="Rancho.name")
+    providers = db.relationship("Provider", backref="owner", order_by="Provider.name")
+
+    @property
+    def services_only(self):
+        """Conta de profissional (cozinheira...), sem rancho: o painel mostra só o anúncio dela."""
+        return bool(self.providers) and not self.ranchos
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw)
@@ -359,6 +365,8 @@ class Provider(db.Model):
     whatsapp = db.Column(db.String(30), default="")
     active = db.Column(db.Boolean, default=True)
     paid_until = db.Column(db.Date)
+    # Conta (de Owner) que pode editar este anúncio e o cardápio pelo painel. Vazio = só o admin.
+    owner_id = db.Column(db.Integer, db.ForeignKey("owner.id", ondelete="SET NULL"), index=True)
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     photos = db.relationship("ProviderPhoto", order_by="ProviderPhoto.position",
@@ -469,6 +477,7 @@ with app.app_context():
         ("photo", "area", "VARCHAR(20) DEFAULT ''"),
         ("provider_photo", "title", "VARCHAR(120) DEFAULT ''"),
         ("provider_photo", "section", "VARCHAR(60) DEFAULT ''"),
+        ("provider", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -631,6 +640,14 @@ def editable_rancho(rid):
     if not r or not (is_admin() or (current_owner() and r.owner_id == current_owner().id)):
         abort(404)
     return r
+
+
+def editable_provider(pid):
+    """Anúncio de profissional que quem está logado pode mexer (mesma regra de editable_rancho)."""
+    p = db.session.get(Provider, pid)
+    if not p or not (is_admin() or (current_owner() and p.owner_id == current_owner().id)):
+        abort(404)
+    return p
 
 
 def public_ranchos():
@@ -1449,6 +1466,30 @@ def provider_page(slug):
     return render_template("provider.html", p=p, rancho=rancho if rancho and rancho.public else None)
 
 
+@app.route("/servicos/<slug>.json")
+def provider_json(slug):
+    """Anúncio e cardápio em JSON, para o site próprio da profissional (ex.: ines-cozinheira.vercel.app)
+    mostrar o que ela edita aqui no painel. Só dados públicos, que já estão na página."""
+    p = Provider.query.filter_by(slug=slug, active=True).first_or_404()
+    photo = lambda ph: {"title": ph.title, "thumb": ph.url("t", absolute=True), "full": ph.url(absolute=True),
+                        "width": ph.width, "height": ph.height}
+    data = {
+        "name": p.name,
+        "summary": p.summary,
+        "description": [x.strip() for x in (p.description or "").split("\n") if x.strip()],
+        "services": [SERVICES[k][0] for k in p.service_list],
+        "price_text": p.price_text,
+        "whatsapp": p.whatsapp_digits,
+        "cover": photo(p.cover) if p.cover else None,
+        "sections": [{"name": name, "items": [photo(ph) for ph in items]} for name, items in p.menu_sections],
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    }
+    resp = jsonify(data)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cache-Control"] = "public, max-age=60"  # mudança no painel aparece em até 1 minuto
+    return resp
+
+
 @app.route("/servicos/<slug>/whatsapp")
 def provider_whatsapp(slug):
     p = Provider.query.filter_by(slug=slug, active=True).first_or_404()
@@ -1706,6 +1747,8 @@ def owner_password():
 def admin_home():
     since = now_utc() - timedelta(days=30)
     o = current_owner()
+    if o and o.services_only and len(o.providers) == 1:  # cozinheira etc.: vai direto pro anúncio dela
+        return redirect(url_for("admin_provider", pid=o.providers[0].id))
     if o:
         ranchos = Rancho.query.filter_by(owner_id=o.id).order_by(Rancho.name).all()
         c30 = counts_since(since)
@@ -2077,23 +2120,33 @@ def admin_providers():
 
 @app.route("/admin/servicos/novo", methods=["GET", "POST"])
 @app.route("/admin/servicos/<int:pid>", methods=["GET", "POST"])
-@admin_required
+@panel_required
 def admin_provider(pid=None):
-    p = (db.session.get(Provider, pid) or abort(404)) if pid else None
+    """Admin cadastra e edita tudo. A profissional com conta (owner_id) edita o próprio anúncio
+    e o cardápio; nome (que dá o endereço da página), publicação e pagamento ficam com o admin."""
+    admin = is_admin()
+    if pid:
+        p = editable_provider(pid)
+    elif admin:
+        p = None
+    else:
+        abort(403)
     if request.method == "POST":
         f = request.form
         if p is None:
             p = Provider(slug="tmp-" + secrets.token_hex(4))
             db.session.add(p)
         old_name = p.name
-        p.name = f.get("name", "").strip()[:120] or "Sem nome"
+        if admin:
+            p.name = f.get("name", "").strip()[:120] or "Sem nome"
+            p.active = bool(f.get("active"))
+            p.paid_until = parse_day(f.get("paid_until"))
+            p.owner_id = to_int(f.get("owner_id")) or None
         p.services = ",".join(k for k in f.getlist("services") if k in SERVICES)
         p.summary = f.get("summary", "").strip()[:200]
         p.description = f.get("description", "").replace("\r\n", "\n").strip()
         p.price_text = f.get("price_text", "").strip()[:160]
         p.whatsapp = f.get("whatsapp", "").strip()[:30]
-        p.active = bool(f.get("active"))
-        p.paid_until = parse_day(f.get("paid_until"))
         db.session.flush()
         if p.name != old_name:
             p.slug = unique_slug(p.name, exclude_id=p.id, model=Provider)
@@ -2104,22 +2157,33 @@ def admin_provider(pid=None):
         added, skipped = save_uploads(p, request.files.getlist("photos"), ProviderPhoto)
         added_menu, skipped_menu = save_uploads(p, request.files.getlist("menu_photos"), ProviderPhoto, menu=True)
         added, skipped = added + added_menu, skipped + skipped_menu
+        # Um item por vez (o jeito mais fácil no celular): foto + nome + seção
+        new_title = f.get("new_item_title", "").strip()[:120]
+        n, bad = save_uploads(p, request.files.getlist("new_item_photo")[:1], ProviderPhoto, menu=True)
+        if n:
+            item = p.photos[-1]
+            item.title = new_title or item.title
+            item.section = f.get("new_item_section", "").strip()[:60]
+        added, skipped = added + n, skipped + bad
         db.session.commit()
-        msg = "Profissional salvo."
-        if added:
+        msg = "Salvo."
+        if n:
+            msg += f" \"{p.photos[-1].title}\" entrou no cardápio."
+        elif added:
             msg += f" {added} foto(s) adicionada(s)."
         if skipped:
             msg += f" {skipped} arquivo(s) ignorado(s) por não serem imagens."
         flash(msg, "ok")
         return redirect(url_for("admin_provider", pid=p.id))
-    return render_template("admin/provider_edit.html", p=p,
+    owners = Owner.query.order_by(Owner.name, Owner.login).all() if admin else []
+    return render_template("admin/provider_edit.html", p=p, owners=owners,
                            trial_end=months_later(today_br(), TRIAL_MONTHS))
 
 
 @app.route("/admin/servicos/<int:pid>/foto/<int:fid>/<action>", methods=["POST"])
-@admin_required
+@panel_required
 def admin_provider_photo(pid, fid, action):
-    p = db.session.get(Provider, pid) or abort(404)
+    p = editable_provider(pid)
     photo = next((x for x in p.photos if x.id == fid), None) or abort(404)
     if action == "excluir":
         key = photo.cdn_key
@@ -2299,6 +2363,8 @@ def admin_owner_delete(oid):
     o = db.session.get(Owner, oid) or abort(404)
     for r in o.ranchos:  # os ranchos continuam no site; só ficam sem conta de dono
         r.owner_id = None
+    for p in o.providers:  # idem para anúncio de profissional
+        p.owner_id = None
     db.session.delete(o)
     db.session.commit()
     flash(f"Conta {o.login} excluída. Os ranchos dela continuam no site.", "ok")
