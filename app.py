@@ -1393,8 +1393,17 @@ def rancho(slug):
         if p.area in PHOTO_AREAS:
             counts[p.area] = counts.get(p.area, 0) + 1
     areas = [(k, label, counts[k]) for k, label in PHOTO_AREAS.items() if k in counts]
+    # Tela "Todas as fotos": uma seção por ambiente, na ordem em que aparecem nas fotos do rancho
+    # (o ambiente da capa vem primeiro); foto sem ambiente vai no fim
+    by_area = {}
+    for p in r.photos:
+        by_area.setdefault(p.area if p.area in PHOTO_AREAS else "", []).append(p)
+    tour = [(k, PHOTO_AREAS[k], ps) for k, ps in by_area.items() if k]
+    if "" in by_area:
+        tour.append(("outras", "Outras fotos" if tour else "", by_area[""]))
+    areas = [(k, label, len(ps)) for k, label, ps in tour if k != "outras"]  # botões na mesma ordem
     return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
-                           areas=areas if len(areas) > 1 else [],
+                           areas=areas if len(areas) > 1 else [], tour=tour,
                            providers=public_providers()[:3])
 
 

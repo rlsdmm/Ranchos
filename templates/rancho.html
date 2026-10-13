@@ -39,17 +39,18 @@
   {% if r.photos %}
   <div class="gallery g-n{{ [r.photos|length, 5]|min }}" data-gallery>
     {% for p in r.photos %}
-      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" data-area="{{ p.area or '' }}" aria-label="Ampliar foto {{ loop.index }} de {{ r.photos|length }}">
+      <button class="g-item {% if loop.first %}g-main{% endif %}" data-full="{{ p.url() }}" data-area="{{ p.area or '' }}" data-pid="{{ p.id }}" aria-label="Ver foto {{ loop.index }} de {{ r.photos|length }}">
         <img src="{{ p.url(('f' if loop.first else 't')) }}" alt="{{ r.name }} em {{ CITY_NAME }}, foto {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" {% if not loop.first %}loading="lazy"{% endif %}>
       </button>
     {% endfor %}
-    {% if r.photos|length > 5 %}<span class="g-count">{{ r.photos|length }} fotos</span>{% endif %}
+    {% if r.photos|length > 5 %}<button type="button" class="g-count" data-tour-open>{{ r.photos|length }} fotos</button>{% endif %}
   </div>
+  {# No celular a galeria é um carrossel sem o selo "N fotos": o botão abre a tela com todas #}
+  <button type="button" class="btn btn-outline tour-open-mobile" data-tour-open>📷 Ver todas as {{ r.photos|length }} fotos</button>
   {% if areas %}
-  {# Botões por ambiente: filtram a galeria acima; a tela cheia só abre tocando numa foto #}
+  {# Botões por ambiente: abrem a tela "Todas as fotos" já nesse ambiente (app.js) #}
   <div class="photo-areas" role="group" aria-label="Ver fotos por ambiente">
-    <button type="button" class="area-chip" data-area-filter="" aria-pressed="true">Todas <span>{{ r.photos|length }}</span></button>
-    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-filter="{{ key }}" aria-pressed="false">{{ label }} <span>{{ n }}</span></button>{% endfor %}
+    {% for key, label, n in areas %}<button type="button" class="area-chip" data-area-filter="{{ key }}">{{ label }} <span>{{ n }}</span></button>{% endfor %}
   </div>
   {% endif %}
   {% endif %}
@@ -218,6 +219,39 @@
     {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>{% else %}<strong>Consulte</strong>{% endif %}
   </div>
   <a class="btn btn-zap js-wa" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">Falar com {{ r.owner_name.split()[0] if r.owner_name else 'o dono' }}</a>
+</div>
+{% endif %}
+
+{% if r.photos %}
+{# Tela "Todas as fotos": todas rolando para baixo, uma seção por ambiente (app.js) #}
+<div class="tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tour-title" hidden>
+  <div class="tour-bar">
+    <button type="button" class="tour-close" aria-label="Voltar ao anúncio">←</button>
+    <p class="tour-title" id="tour-title"><strong>{{ r.name }}</strong> <span>{{ r.photos|length }} fotos</span></p>
+  </div>
+  {% if tour|length > 1 %}
+  <nav class="tour-nav" aria-label="Ir para o ambiente">
+    {% for key, label, photos in tour %}<button type="button" class="chip-link" data-tour-jump="tour-{{ key }}">{{ label }} <span>{{ photos|length }}</span></button>{% endfor %}
+  </nav>
+  {% endif %}
+  <div class="tour-body">
+    {% for key, label, photos in tour %}
+    <section class="tour-sec" id="tour-{{ key }}">
+      {% if label %}<h2>{{ label }} <span>{{ photos|length }}</span></h2>{% endif %}
+      <div class="tour-grid">
+        {% for p in photos %}
+        {# a cada três: uma grande e duas lado a lado (a grande usa a foto maior) #}
+        {% set big = loop.index0 % 3 == 0 %}
+        {% set tall = p.height > p.width %}
+        <button type="button" class="tour-item{{ ' big' if big }}{{ ' tall' if tall }}" data-pid="{{ p.id }}" data-full="{{ p.url() }}"
+                data-text="{{ (label ~ ' · ') if label }}{{ loop.index }} de {{ photos|length }}" aria-label="Ampliar: {{ label or 'foto' }} {{ loop.index }} de {{ photos|length }}">
+          <img src="{{ p.url('f' if big else 't') }}" alt="{{ r.name }}{{ ': ' ~ label|lower if label }}, foto {{ loop.index }}" loading="lazy" width="{{ p.width }}" height="{{ p.height }}">
+        </button>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 

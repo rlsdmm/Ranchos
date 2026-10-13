@@ -157,17 +157,151 @@
   }
 
   // Galeria: botões de ambiente filtram as fotos na página; a tela cheia mostra o que está filtrado.
-  const gallery = document.querySelector('[data-gallery]');
+  // Camadas por cima da página (tela de fotos, foto única): o "voltar" do celular fecha a de cima
+  // em vez de sair do anúncio. Fechar pela tela também passa pelo histórico, para ficar igual.
+  const layers = [];
+  let scrollLocks = 0;
+  const lockScroll = (on) => {
+    scrollLocks = Math.max(0, scrollLocks + (on ? 1 : -1));
+    document.body.style.overflow = scrollLocks ? 'hidden' : '';
+  };
+  const pushLayer = (closeFn) => { layers.push(closeFn); history.pushState({ layer: layers.length }, ''); };
+  const closeTopLayer = () => { if (layers.length) history.back(); };
+  window.addEventListener('popstate', () => { const fn = layers.pop(); if (fn) fn(); });
+
+  // Foto única: setas, arrastar para o lado, pinça/toque duplo para zoom, arrastar para baixo fecha
+  function makeViewer(box) {
+    const img = box.querySelector('img');
+    const count = box.querySelector('.lb-count');
+    let items = [], i = 0, back = null;
+    let scale = 1, tx = 0, ty = 0;
+    const apply = (anim) => {
+      img.style.transition = anim ? 'transform .22s ease' : 'none';
+      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    };
+    const reset = (anim) => { scale = 1; tx = 0; ty = 0; box.style.backgroundColor = ''; apply(anim); };
+    const clampPan = () => { // não deixa a foto ampliada sair inteira da tela
+      const mx = (img.offsetWidth * (scale - 1)) / 2, my = (img.offsetHeight * (scale - 1)) / 2;
+      tx = Math.max(-mx, Math.min(mx, tx));
+      ty = Math.max(-my, Math.min(my, ty));
+    };
+    const show = (n) => {
+      i = (n + items.length) % items.length;
+      reset(false);
+      img.src = items[i].full;
+      img.alt = items[i].alt || '';
+      count.textContent = items[i].text || `${i + 1} / ${items.length}`;
+      box.querySelector('.lb-prev').hidden = box.querySelector('.lb-next').hidden = items.length < 2;
+    };
+    const hide = () => { box.hidden = true; lockScroll(false); if (back) back.focus({ preventScroll: true }); };
+    const open = (list, n, from) => {
+      items = list; back = from || null;
+      show(n);
+      box.hidden = false;
+      lockScroll(true);
+      pushLayer(hide);
+      box.querySelector('.lb-close').focus({ preventScroll: true });
+    };
+    box.querySelector('.lb-close').addEventListener('click', closeTopLayer);
+    box.querySelector('.lb-prev').addEventListener('click', () => show(i - 1));
+    box.querySelector('.lb-next').addEventListener('click', () => show(i + 1));
+    box.addEventListener('click', (e) => { if (e.target === box) closeTopLayer(); });
+    img.addEventListener('dblclick', () => { scale = scale > 1 ? 1 : 2.5; tx = ty = 0; apply(true); });
+    document.addEventListener('keydown', (e) => {
+      if (box.hidden) return;
+      if (e.key === 'Escape') closeTopLayer();
+      if (e.key === 'ArrowLeft') show(i - 1);
+      if (e.key === 'ArrowRight') show(i + 1);
+    });
+    // Toque: 1 dedo arrasta (lado = trocar foto, baixo = fechar, ampliada = mover); 2 dedos = zoom
+    let sx = 0, sy = 0, dx = 0, dy = 0, axis = null, pinch = null, lastTap = 0, moved = false;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    box.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button')) return;
+      if (e.touches.length === 2) { pinch = { d: dist(e.touches), s: scale }; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = dy = 0; axis = null; moved = false;
+    }, { passive: true });
+    box.addEventListener('touchmove', (e) => {
+      if (e.target.closest('button')) return;
+      e.preventDefault(); // a página de trás não rola nem dá zoom
+      if (pinch && e.touches.length === 2) {
+        scale = Math.max(1, Math.min(4, pinch.s * dist(e.touches) / pinch.d));
+        clampPan(); apply(false); return;
+      }
+      if (e.touches.length !== 1) return;
+      const nx = e.touches[0].clientX, ny = e.touches[0].clientY;
+      const ddx = nx - sx - dx, ddy = ny - sy - dy;
+      dx = nx - sx; dy = ny - sy;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+      if (scale > 1) { tx += ddx; ty += ddy; clampPan(); apply(false); return; }
+      if (!axis && moved) axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis === 'x') { tx = dx; apply(false); }
+      if (axis === 'y' && dy > 0) {
+        ty = dy; apply(false);
+        box.style.backgroundColor = `rgba(8,20,19,${Math.max(0.35, 0.94 - dy / 500)})`;
+      }
+    }, { passive: false });
+    box.addEventListener('touchend', (e) => {
+      if (pinch) { if (e.touches.length < 2) { pinch = null; if (scale < 1.05) reset(true); } return; }
+      if (e.target.closest('button')) return;
+      if (!moved) { // toque duplo amplia/volta
+        const now = Date.now();
+        if (now - lastTap < 300) { scale = scale > 1 ? 1 : 2.5; tx = ty = 0; apply(true); lastTap = 0; }
+        else lastTap = now;
+        return;
+      }
+      if (scale > 1) return;
+      if (axis === 'y' && dy > 110) { closeTopLayer(); return; }
+      if (axis === 'x' && Math.abs(dx) > 60 && items.length > 1) { show(dx < 0 ? i + 1 : i - 1); return; }
+      reset(true);
+    });
+    return { open };
+  }
+
   const lb = document.getElementById('lightbox');
-  if (gallery && lb) {
+  const viewer = lb ? makeViewer(lb) : null;
+  const toItem = (el, text) => ({ full: el.dataset.full, alt: el.querySelector('img')?.alt, text });
+
+  // Tela "Todas as fotos" do rancho: tocar na galeria abre ela, já na foto tocada
+  const tour = document.getElementById('tour');
+  let openTour = null;
+  if (tour && viewer) {
+    const tItems = [...tour.querySelectorAll('[data-full]')];
+    const tList = tItems.map((el) => toItem(el, el.dataset.text));
+    tItems.forEach((el, k) => el.addEventListener('click', () => viewer.open(tList, k, el)));
+    let back = null;
+    const hideTour = () => { tour.hidden = true; lockScroll(false); if (back) back.focus({ preventScroll: true }); };
+    // pid: abre já nessa foto; area: abre no começo desse ambiente
+    openTour = (pid, from, area) => {
+      back = from || null;
+      tour.hidden = false;
+      lockScroll(true);
+      pushLayer(hideTour);
+      const target = (pid && tour.querySelector(`.tour-item[data-pid="${pid}"]`))
+        || (area && document.getElementById(`tour-${area}`));
+      if (target) target.scrollIntoView({ block: pid ? 'center' : 'start' });
+      else tour.scrollTop = 0;
+      tour.querySelector('.tour-close').focus({ preventScroll: true });
+    };
+    tour.querySelector('.tour-close').addEventListener('click', closeTopLayer);
+    tour.querySelectorAll('[data-tour-jump]').forEach((b) => b.addEventListener('click', () => {
+      document.getElementById(b.dataset.tourJump)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !tour.hidden && lb.hidden) closeTopLayer();
+    });
+    document.querySelectorAll('[data-tour-open]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTour(null, b);
+    }));
+  }
+
+  const gallery = document.querySelector('[data-gallery]');
+  if (gallery && viewer) {
     const all = [...gallery.querySelectorAll('[data-full]')];
     const countTag = gallery.querySelector('.g-count');
     const chips = [...document.querySelectorAll('[data-area-filter]')];
-    const img = lb.querySelector('img');
-    const count = lb.querySelector('.lb-count');
     let items = all;
-    let i = 0;
-    let startX = null;
     const filter = (area) => {
       items = area ? all.filter((el) => el.dataset.area === area) : all;
       // As do ambiente vão para a frente (a grade do computador mostra as 5 primeiras); as outras somem.
@@ -181,34 +315,22 @@
       gallery.scrollLeft = 0;
       chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.areaFilter === area)));
     };
-    chips.forEach((c) => c.addEventListener('click', () => filter(c.dataset.areaFilter)));
-    const show = (n) => {
-      i = (n + items.length) % items.length;
-      img.src = items[i].dataset.full;
-      img.alt = items[i].querySelector('img').alt;
-      const caption = items[i].dataset.caption;  // nome do prato, no cardápio
-      count.textContent = `${caption ? caption + ' · ' : ''}${i + 1} / ${items.length}`;
+    // Rancho: o botão do ambiente abre a tela de fotos nele ("Todas" abre do começo).
+    // Sem a tela (não deveria acontecer), continua filtrando a galeria.
+    chips.forEach((c) => c.addEventListener('click', () => {
+      if (openTour) openTour(null, c, c.dataset.areaFilter);
+      else filter(c.dataset.areaFilter);
+    }));
+    const open = (el) => {
+      if (openTour) { openTour(el.dataset.pid, el); return; } // rancho: tela com todas as fotos
+      // profissional: foto única, passando pelo que está na tela (cardápio e fotos do trabalho)
+      const list = items.map((x, k) => {
+        const c = x.dataset.caption; // nome do prato, no cardápio
+        return toItem(x, `${c ? c + ' · ' : ''}${k + 1} / ${items.length}`);
+      });
+      viewer.open(list, items.indexOf(el), el);
     };
-    const open = (n) => { show(n); lb.hidden = false; document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
-    const close = () => { lb.hidden = true; document.body.style.overflow = ''; items[i].focus(); };
-    all.forEach((el) => el.addEventListener('click', () => open(items.indexOf(el))));
-    lb.querySelector('.lb-close').addEventListener('click', close);
-    lb.querySelector('.lb-prev').addEventListener('click', () => show(i - 1));
-    lb.querySelector('.lb-next').addEventListener('click', () => show(i + 1));
-    lb.addEventListener('click', (e) => { if (e.target === lb) close(); });
-    document.addEventListener('keydown', (e) => {
-      if (lb.hidden) return;
-      if (e.key === 'Escape') close();
-      if (e.key === 'ArrowLeft') show(i - 1);
-      if (e.key === 'ArrowRight') show(i + 1);
-    });
-    lb.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-    lb.addEventListener('touchend', (e) => {
-      if (startX === null) return;
-      const dx = e.changedTouches[0].clientX - startX;
-      if (Math.abs(dx) > 50) show(dx < 0 ? i + 1 : i - 1);
-      startX = null;
-    });
+    all.forEach((el) => el.addEventListener('click', () => open(el)));
   }
 
   // Painel: mostra o que foi escolhido no campo de foto (no celular, sem isso parece que nada aconteceu)
