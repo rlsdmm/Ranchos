@@ -568,6 +568,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lg { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 8px; }
 .report-text { width: 100%; background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r); padding: 14px; font-size: 15px; resize: vertical; }
 .row-btns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.map-embed { display: block; width: 100%; aspect-ratio: 16 / 10; border: 0; border-radius: var(--r); background: var(--rio-soft); }
+@media (max-width: 600px) { .map-embed { aspect-ratio: 4 / 3; } }
+.map-jump { color: var(--rio-2); font-weight: 700; text-underline-offset: 3px; display: inline-block; padding: 4px 0; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
