@@ -740,14 +740,17 @@ def detect_source():
         return clean_source(args["utm_source"]) or "direto"
     if args.get("gclid") or args.get("gbraid") or args.get("wbraid"):
         return "google-ads"
-    ref_host = urlparse(request.headers.get("Referer", "")).netloc.lower().split(":")[0]
-    if ref_host and ref_host != request.host.split(":")[0]:
+    ref_host = urlparse(request.headers.get("Referer", "")).netloc.lower().split(":")[0].removeprefix("www.")
+    # Vindo do próprio site (sessão perdida, com ou sem www) ou de teste local não é origem.
+    own = {request.host.split(":")[0].removeprefix("www."), CANONICAL_HOST.split(":")[0].removeprefix("www."),
+           "localhost", "127.0.0.1"}
+    if ref_host and ref_host not in own:
         for pattern, name in REFERRER_SOURCES:
             if pattern.search(ref_host):
                 return name
         if args.get("fbclid"):
             return "meta"
-        return clean_source(ref_host.removeprefix("www."))  # outro site qualquer: guarda o domínio
+        return clean_source(ref_host)  # outro site qualquer: guarda o domínio
     if args.get("fbclid"):
         return "meta"
     return "direto"
