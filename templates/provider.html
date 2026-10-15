@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% set first = p.name.split()[0] %}
 {% set menu = p.menu %}
-{% block title %}{% if menu %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %}{% if p.service_list %}, {{ SERVICES[p.service_list[0]][0]|lower }}{% endif %} em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
-{% block description %}{{ p.summary or p.name }}{% if menu %} Veja o cardápio com fotos: {{ menu[:4]|map(attribute='title')|join(', ') }} e mais.{% endif %} Fale direto pelo WhatsApp.{% endblock %}
+{% block title %}{% if p.sells_drinks %}{{ p.name }}: bebidas e gelo com entrega nos ranchos de {{ CITY_NAME }}{% else %}{% if menu %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %}{% if p.service_list %}, {{ SERVICES[p.service_list[0]][0]|lower }}{% endif %} em {{ CITY_NAME }}{% endif %} | {{ SITE_NAME }}{% endblock %}
+{% block description %}{{ p.summary or p.name }}{% if menu %} Veja {{ 'os produtos' if p.sells_drinks else 'o cardápio' }} com fotos: {{ menu[:4]|map(attribute='title')|join(', ') }} e mais.{% endif %} Fale direto pelo WhatsApp.{% endblock %}
 {% block meta %}
   <link rel="canonical" href="{{ site_url() }}{{ url_for('provider_page', slug=p.slug) }}">
-  <meta property="og:title" content="{% if menu %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %} | {{ SITE_NAME }}">
+  <meta property="og:title" content="{% if menu and not p.sells_drinks %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %} | {{ SITE_NAME }}">
   <meta property="og:description" content="{{ p.summary or ('Serviços para a sua estadia em ' ~ CITY_NAME) }}">
   <meta property="og:type" content="website">
   {% if p.cover %}<meta property="og:image" content="{{ p.cover.url(absolute=True) }}">{% endif %}
@@ -31,20 +31,24 @@
     <div class="pcard-desc provider-desc">{% for para in p.description.split('\n') if para.strip() %}<p>{{ para }}</p>{% endfor %}</div>
   {% endif %}
 
+  {% if p.delivery %}<p class="pcard-delivery provider-delivery"><span aria-hidden="true">🚚</span> <strong>Entrega nos ranchos:</strong> {{ p.delivery }}</p>{% endif %}
+
   {% if p.whatsapp_digits %}
   <p class="provider-cta">
-    <a class="btn btn-zap" href="{{ url_for('provider_whatsapp', slug=p.slug, rancho=rancho.slug if rancho else None) }}" rel="nofollow">Chamar {{ first }} no WhatsApp</a>
-    <span class="muted small">{{ p.price_text or 'Valores a combinar' }}</span>
+    <a class="btn btn-zap" href="{{ url_for('provider_whatsapp', slug=p.slug, rancho=rancho.slug if rancho else None) }}" rel="nofollow">{% if p.sells_drinks %}Fazer pedido no WhatsApp{% else %}Chamar {{ first }} no WhatsApp{% endif %}</a>
+    <span class="muted small">{{ p.price_text or ('Preços pelo WhatsApp' if p.sells_drinks else 'Valores a combinar') }}</span>
   </p>
   {% endif %}
+  {% if p.sells_drinks %}<p class="drink-notice">{{ DRINK_NOTICE }}</p>{% endif %}
 
   {# Tocar numa foto abre a tela cheia (app.js); as setas passam pelo cardápio e pelas fotos do trabalho #}
   <div data-gallery>
   {% if menu %}
   {# Quem também faz faxina ou roupa de cama não tem só comida na lista #}
   {% set only_food = not p.service_list|reject('in', ['cozinheira', 'churrasqueiro', 'confeitaria'])|list %}
+  {% set only_drinks = p.service_list == ['bebidas'] %}
   <section class="menu" aria-labelledby="cardapio">
-    <h2 id="cardapio">{{ 'Cardápio' if only_food else 'Cardápio e serviços' }}</h2>
+    <h2 id="cardapio">{{ 'Produtos' if only_drinks else ('Cardápio' if only_food else 'Cardápio e serviços') }}</h2>
     {% set sections = p.menu_sections %}
     {% if sections|length > 1 %}
     <nav class="chips menu-nav" aria-label="Seções do cardápio">

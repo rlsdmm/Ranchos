@@ -101,12 +101,16 @@ AMENITIES = {
 }
 # Serviços que os profissionais anunciam (página /servicos e bloco na página do rancho)
 SERVICES = {
+    "bebidas": ("Bebidas e gelo", "🍺"),
     "cozinheira": ("Cozinheira", "👩‍🍳"),
     "churrasqueiro": ("Churrasqueiro", "🍖"),
     "confeitaria": ("Confeitaria", "🎂"),
     "faxina": ("Faxina", "🧹"),
     "roupa_cama": ("Aluguel de roupa de cama", "🛏️"),
 }
+# Serviço que vende bebida alcoólica: leva o aviso obrigatório e o botão vira "Fazer pedido"
+DRINK_SERVICES = {"bebidas"}
+DRINK_NOTICE = "Venda proibida para menores de 18 anos. Beba com moderação."
 
 # Comodidades que viram filtro na página inicial e linha na comparação da lista
 FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
@@ -362,6 +366,7 @@ class Provider(db.Model):
     summary = db.Column(db.String(200), default="")       # frase curta do card
     description = db.Column(db.Text, default="")
     price_text = db.Column(db.String(160), default="")    # vazio = a combinar
+    delivery = db.Column(db.String(200), default="")      # entrega nos ranchos: área, taxa, horário
     whatsapp = db.Column(db.String(30), default="")
     active = db.Column(db.Boolean, default=True)
     paid_until = db.Column(db.Date)
@@ -375,6 +380,10 @@ class Provider(db.Model):
     @property
     def service_list(self):
         return [k for k in (self.services or "").split(",") if k in SERVICES]
+
+    @property
+    def sells_drinks(self):
+        return any(k in DRINK_SERVICES for k in self.service_list)
 
     @property
     def whatsapp_digits(self):
@@ -478,6 +487,7 @@ with app.app_context():
         ("provider_photo", "title", "VARCHAR(120) DEFAULT ''"),
         ("provider_photo", "section", "VARCHAR(60) DEFAULT ''"),
         ("provider", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
+        ("provider", "delivery", "VARCHAR(200) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -1030,7 +1040,7 @@ def counts_since(since, rancho_id=None):
 @app.context_processor
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
-                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
+                AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, DRINK_NOTICE=DRINK_NOTICE, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year)
 
 
@@ -1510,8 +1520,12 @@ def provider_whatsapp(slug):
     r = Rancho.query.filter_by(slug=request.args.get("rancho", "")).first()
     log_event(r.id if r else None, "prestador", provider_id=p.id)
     stay = f" Vou ficar no {r.name}." if r else ""
-    msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
-           f"Gostaria de saber sobre seus serviços para as datas: ")
+    if p.sells_drinks:
+        msg = (f"Olá! Vi o anúncio de {p.name} no site {SITE_NAME}.{stay} "
+               f"Quero fazer um pedido para entregar no rancho: ")
+    else:
+        msg = (f"Olá, {p.name.split()[0]}! Vi seu anúncio no site {SITE_NAME}.{stay} "
+               f"Gostaria de saber sobre seus serviços para as datas: ")
     return redirect(f"https://wa.me/{p.whatsapp_digits}?text={quote(msg)}")
 
 
@@ -2158,6 +2172,7 @@ def admin_provider(pid=None):
         p.summary = f.get("summary", "").strip()[:200]
         p.description = f.get("description", "").replace("\r\n", "\n").strip()
         p.price_text = f.get("price_text", "").strip()[:160]
+        p.delivery = f.get("delivery", "").strip()[:200]
         p.whatsapp = f.get("whatsapp", "").strip()[:30]
         db.session.flush()
         if p.name != old_name:

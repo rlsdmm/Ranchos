@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_provider_card.html" import provider_card with context %}
-{% block title %}Cozinheira, faxina e roupa de cama para ranchos em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
-{% block description %}Cozinheira, churrasqueiro, confeitaria, faxina e aluguel de roupa de cama para a sua estadia em ranchos de {{ CITY_NAME }}. Fale direto com cada profissional pelo WhatsApp.{% endblock %}
+{% block title %}Bebidas e gelo, cozinheira e faxina para ranchos em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}Bebidas e gelo com entrega no rancho, cozinheira, churrasqueiro, confeitaria, faxina e aluguel de roupa de cama para a sua estadia em ranchos de {{ CITY_NAME }}. Fale direto pelo WhatsApp.{% endblock %}
 {% block meta %}
   <link rel="canonical" href="{{ site_url() }}{{ url_for('services') }}">
   <meta property="og:title" content="Serviços para a sua estadia em {{ CITY_NAME }}">
@@ -11,8 +11,8 @@
 <section class="wrap cat-page">
   <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Serviços</nav>
   <h1>Serviços para a sua estadia</h1>
-  <p class="cat-intro">Quer só aproveitar o rancho? Cozinheira, faxina, confeitaria e roupa de cama em {{ CITY_NAME }}.
-    Você combina datas e valores direto com cada profissional pelo WhatsApp{% if rancho %}, e a mensagem já avisa que você vai ficar no {{ rancho.name }}{% endif %}.</p>
+  <p class="cat-intro">Quer só aproveitar o rancho? Bebidas e gelo com entrega, cozinheira, faxina, confeitaria e roupa de cama em {{ CITY_NAME }}.
+    Você combina tudo direto pelo WhatsApp{% if rancho %}, e a mensagem já avisa que você vai ficar no {{ rancho.name }}{% endif %}.</p>
 
   <nav class="chips svc-filter" aria-label="Tipo de serviço">
     <a class="chip-link {{ 'on' if not wanted }}" href="{{ url_for('services', rancho=rancho.slug if rancho else None) }}">Todos</a>

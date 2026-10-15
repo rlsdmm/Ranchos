@@ -37,6 +37,8 @@
     <label>Frase curta para o card <input name="summary" maxlength="200" value="{{ p.summary if p else '' }}" placeholder="Comida caseira e churrasco para o fim de semana no rancho."></label>
     <label>Descrição <span class="muted">(um parágrafo por linha)</span><textarea name="description" rows="5">{{ p.description if p else '' }}</textarea></label>
     <label>Valores <span class="muted">(vazio = "Valores a combinar")</span><input name="price_text" maxlength="160" value="{{ p.price_text if p else '' }}" placeholder="Diária a partir de R$ 250"></label>
+    <label>Entrega nos ranchos <span class="muted">(opcional: onde entrega, taxa, pedido mínimo, horário)</span>
+      <input name="delivery" maxlength="200" value="{{ p.delivery if p else '' }}" placeholder="Todos os ranchos, taxa R$ 10, até 22h inclusive fim de semana"></label>
     <label>WhatsApp com DDD <input name="whatsapp" maxlength="30" value="{{ p.whatsapp if p else '' }}" placeholder="(16) 99999-9999"></label>
   </fieldset>
 
