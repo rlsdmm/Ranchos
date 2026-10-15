@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Anuncie seu rancho em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
 {% block description %}Anuncie seu rancho para turistas que procuram onde ficar em {{ CITY_NAME }}. A gente tira as fotos e monta o anúncio. 3 meses grátis.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('anuncie') }}">
+  <meta property="og:title" content="Anuncie seu rancho em {{ CITY_NAME }}: 3 meses grátis">
+  <meta property="og:description" content="A gente monta o anúncio com as fotos do seu rancho e o turista fala direto com você no WhatsApp, sem taxa por reserva.">
+  <meta property="og:type" content="website">
+{% endblock %}
 {% block content %}
 <section class="wrap anuncie">
   <div class="anuncie-pitch">

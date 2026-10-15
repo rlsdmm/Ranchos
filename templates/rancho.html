@@ -21,7 +21,7 @@
   <header class="rancho-head">
     <div>
       <h1>{{ r.name }}</h1>
-      <p class="muted">{% if r.region %}{{ r.region }}, {% endif %}{{ CITY_NAME }}{% if r.coords %} · <a class="map-jump" href="#localizacao">Ver no mapa</a>{% endif %}</p>
+      <p class="muted">{% if r.region %}{{ r.region }}, {% endif %}{{ CITY_NAME }}{% if r.map_query %} · <a class="map-jump" href="#localizacao">Ver no mapa</a>{% endif %}</p>
       {% if r.agenda_fresh and months %}<p class="fresh"><a href="#agenda">Agenda atualizada {{ r.calendar_updated_at|ago }}</a></p>{% endif %}
     </div>
     <div class="badges-inline">
@@ -117,13 +117,13 @@
       {% if r.maps_url %}
       <section class="block" id="localizacao">
         <h2>Localização</h2>
-        {% if r.coords %}
-        <iframe class="map-embed" src="https://maps.google.com/maps?q={{ r.coords }}&amp;t=k&amp;z=15&amp;hl=pt-BR&amp;output=embed"
+        {% if r.map_query %}
+        <iframe class="map-embed" src="https://maps.google.com/maps?q={{ r.map_query|urlencode }}&amp;t=k&amp;z=15&amp;hl=pt-BR&amp;output=embed"
                 title="Mapa de satélite com a localização do {{ r.name }}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         {% endif %}
         <div class="row-btns map-btns">
           <a class="btn btn-outline" href="{{ r.maps_url }}" target="_blank" rel="noopener nofollow">🗺️ Google Maps</a>
-          {% if r.coords %}<a class="btn btn-outline" href="https://waze.com/ul?ll={{ r.coords }}&amp;navigate=yes" target="_blank" rel="noopener nofollow">🚗 Waze</a>{% endif %}
+          {% if r.map_query %}<a class="btn btn-outline" href="https://waze.com/ul?{{ 'll=' ~ r.coords if r.coords else 'q=' ~ (r.map_query|urlencode) }}&amp;navigate=yes" target="_blank" rel="noopener nofollow">🚗 Waze</a>{% endif %}
         </div>
       </section>
       {% endif %}

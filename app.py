@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 import calendar as calmod
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 
 from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template,
@@ -282,6 +282,20 @@ class Rancho(db.Model):
             if m and abs(float(m.group(1))) <= 90 and abs(float(m.group(2))) <= 180:
                 return f"{m.group(1)},{m.group(2)}"
         return None
+
+    @property
+    def map_query(self):
+        """O que o mapa embutido e o Waze procuram: as coordenadas ou, quando o link não traz,
+        o endereço ou o nome do lugar que está no link."""
+        if self.coords:
+            return self.coords
+        u = urlparse(self.maps_url or "")
+        qs = parse_qs(u.query)
+        q = (qs.get("query") or qs.get("q") or [""])[0].strip()
+        if q:
+            return q
+        m = re.search(r"/maps/place/([^/@]+)", u.path)
+        return f"{unquote(m.group(1)).replace('+', ' ')}, {CITY_NAME}" if m else None
 
     @property
     def is_new(self):
@@ -1239,6 +1253,11 @@ def category_facts(cat, ranchos):
     return ([head] + facts), faq
 
 
+def no_dot(text):
+    """Texto do cadastro vai no meio de uma frase que já fecha com ponto: tira o ponto que o dono digitou."""
+    return text.strip().rstrip(".").rstrip()
+
+
 def rancho_faq(r):
     """Perguntas de quem vai alugar, respondidas com o que o dono cadastrou.
     Só entra pergunta com resposta conhecida: comodidade não marcada não quer dizer "não"."""
@@ -1246,7 +1265,7 @@ def rancho_faq(r):
     dono = r.owner_name.split()[0] if r.owner_name else "o dono"
     if r.capacity:
         rooms = f", em {plural(r.bedrooms, 'quarto', 'quartos')}" if r.bedrooms else ""
-        beds = f" Camas: {r.beds}." if r.beds else ""
+        beds = f" Camas: {no_dot(r.beds)}." if r.beds else ""
         q.append((f"Quantas pessoas cabem no {r.name}?", f"Até {r.capacity} pessoas{rooms}.{beds}"))
     prices = []
     if r.price_weekend:
@@ -1255,7 +1274,7 @@ def rancho_faq(r):
         prices.append(f"a diária avulsa por {brl(r.price_night)}")
     if prices or r.price_holiday:
         txt = ("Pelo anúncio, " + " e ".join(prices) + ". ") if prices else ""
-        txt += f"Feriados: {r.price_holiday}." if r.price_holiday else "O valor de feriado é combinado com o dono."
+        txt += f"Feriados: {no_dot(r.price_holiday)}." if r.price_holiday else "O valor de feriado é combinado com o dono."
         q.append((f"Quanto custa alugar o {r.name}?", txt))
     water = [t for k, t in (("beira_rio", "fica na beira do rio"), ("rampa", "tem rampa para barco e jet ski"),
                             ("pesca", "é bom para pesca")) if k in a]
@@ -1264,7 +1283,7 @@ def rancho_faq(r):
     if "pet" in a:
         q.append(("Aceita cachorro?", "Sim, o rancho aceita pet. Avise o dono antes sobre o seu."))
     if r.internet or "wifi" in a:
-        q.append(("Tem internet?", f"Sim: {r.internet}." if r.internet else "Sim, tem Wi-Fi."))
+        q.append(("Tem internet?", f"Sim: {no_dot(r.internet)}." if r.internet else "Sim, tem Wi-Fi."))
     if "roupa_cama" in a:
         q.append(("Precisa levar roupa de cama?", "Não, a roupa de cama está inclusa."))
     if r.checkin or r.checkout:
