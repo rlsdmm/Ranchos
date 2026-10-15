@@ -31,6 +31,11 @@ PEIXES = [
                "do tucunaré. Fica em água parada, perto da vegetação da margem.",
          dica="Minhoca, massa e iscas pequenas perto do capim e dos galhos da margem. Bom peixe para "
               "criança pegar."),
+    dict(key="tilapia", nome="Tilápia", outros="", cientifico="Oreochromis spp.", nativa=False,
+         sobre="Corpo alto e achatado, acinzentado, com listras verticais fracas e a nadadeira das costas cheia "
+               "de espinhos. Muito comum na represa e ótima para fritar.",
+         dica="Massa, milho ou minhoca com anzol pequeno, perto da margem e das áreas com capim. "
+              "Belisca bastante: fisgue rápido."),
     dict(key="traira", nome="Traíra", outros="", cientifico="Hoplias spp.", nativa=True,
          sobre="Corpo roliço e boca grande, cheia de dentes. Vive em água rasa e parada, no meio do mato "
                "da margem, e ataca com força.",
@@ -72,6 +77,8 @@ CREDITO = {
                 "https://commons.wikimedia.org/wiki/File:Plagioscion_squamosissimus.jpg"),
     "oscar": ("George Chernilevsky", "domínio público",
               "https://commons.wikimedia.org/wiki/File:Astronotus_ocellatus_2015_G1.jpg"),
+    "tilapia": ("Bjørn Christian Tørrissen", "CC BY-SA 3.0",
+                "https://commons.wikimedia.org/wiki/File:Oreochromis-niloticus-Nairobi.JPG"),
     "traira": ("Enrique Manuel González González", "CC BY-SA 4.0",
                "https://commons.wikimedia.org/wiki/File:Tararira_(Hoplias_malabaricus),_Uruguay,_2020.jpg"),
     "piau": ("Gerry van Tonder", "CC BY 4.0", "https://commons.wikimedia.org/wiki/File:Leporinus_friderici_60892985.jpg"),
