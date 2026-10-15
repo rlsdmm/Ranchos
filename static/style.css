@@ -809,3 +809,57 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .footer-links { gap: 2px; }
   .footer-links a { display: block; padding: 9px 0; }                  /* links do rodapé: 25px -> 43px */
 }
+
+/* página de pesca: peixes, mural de pescarias e regras */
+.fish-page { max-width: 1040px; padding-bottom: 56px; }
+.fish-page h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 850; font-stretch: 112%; letter-spacing: -0.02em; margin-bottom: 14px; }
+.fish-page .intro { max-width: 62ch; font-size: 19px; }
+.fish-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+.fish-jump a { padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font-weight: 700; font-size: 15px; text-decoration: none; }
+.fish-jump a:hover { border-color: var(--rio-2); }
+.fish-alert { margin: 22px 0 0; padding: 14px 16px; border-radius: var(--r); background: #fff4dc; box-shadow: inset 0 0 0 1.5px var(--sol); max-width: 72ch; }
+.fish-sec { margin-top: 44px; scroll-margin-top: 16px; }
+.fish-sec h2 { font-size: 26px; font-weight: 800; font-stretch: 106%; margin-bottom: 6px; }
+.fish-sec h2.small-h { font-size: 18px; }
+.fish-sec > .muted { margin: 0 0 16px; }
+.fish-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.fish-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; scroll-margin-top: 16px; }
+.fish-card img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: var(--rio-soft); }
+.fish-card img.fit { object-fit: contain; background: #fff; padding: 6px; }
+.fish-body { padding: 14px 16px 18px; display: grid; gap: 8px; align-content: start; }
+.fish-body h3 { font-size: 21px; font-weight: 800; margin: 0; }
+.fish-body p { margin: 0; }
+.fish-also { color: var(--muted); font-size: 14px; }
+.fish-tag { justify-self: start; font-size: 13px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+.fish-tag.ok { background: #e2f4e8; color: #17663a; }
+.fish-tag.no { background: #fbe3e1; color: #8a231d; }
+.fish-tag.maybe { background: #fff1d1; color: #7a5208; }
+.fish-tip { font-size: 15px; color: var(--muted); }
+.fish-tip strong { color: var(--ink); }
+.catch-grid { list-style: none; margin: 0 0 22px; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.catch { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.catch img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; background: var(--rio-soft); }
+.catch-body { padding: 10px 12px 12px; display: grid; gap: 4px; }
+.catch-body p { margin: 0; font-size: 15px; }
+.catch-fish { font-weight: 800; }
+.catch-empty { margin: 0 0 18px; }
+.catch-form { max-width: 560px; padding: 0; }
+.catch-form summary { cursor: pointer; padding: 18px 22px; font-weight: 800; font-size: 18px; color: var(--rio-2); list-style: none; }
+.catch-form summary::-webkit-details-marker { display: none; }
+.catch-form[open] summary { border-bottom: 1px solid var(--line); }
+.catch-form .form { padding: 18px 22px 22px; }
+.catch-form .upload small { display: block; margin-top: 4px; }
+.fish-rules { max-width: 760px; }
+.fish-rules h3 { font-size: 19px; font-weight: 800; margin: 22px 0 10px; }
+.page-list.no { list-style: none; padding-left: 0; }
+.page-list.no > li { position: relative; padding-left: 30px; }
+.page-list.no > li::before { content: "✕"; position: absolute; left: 0; top: 0; color: var(--danger); font-weight: 900; }
+.credits { padding-left: 1.2em; display: grid; gap: 4px; }
+.credits a { color: inherit; }
+@media (max-width: 600px) {
+  .fish-sec { margin-top: 36px; }
+  .catch-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .catch-body { padding: 8px 10px 10px; }
+  .catch-body p { font-size: 14px; }
+  .catch-form summary, .catch-form .form { padding-inline: 16px; }
+}

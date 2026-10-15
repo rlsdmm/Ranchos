@@ -126,6 +126,24 @@
       </section>
       {% endif %}
 
+      {% if catches %}
+      <section class="block">
+        <h2>Pescarias de quem ficou aqui</h2>
+        <ul class="catch-grid">
+          {% for c in catches %}
+          <li class="catch">
+            <a href="{{ c.url() }}" target="_blank" rel="noopener"><img src="{{ c.url('t') }}" alt="{{ c.species_name }}{% if c.name %} pescado por {{ c.name }}{% endif %}" loading="lazy" width="{{ c.width }}" height="{{ c.height }}"></a>
+            <div class="catch-body">
+              <p class="catch-fish">{{ c.species_name }}{% if c.name %} · <span class="muted">{{ c.name }}</span>{% endif %}</p>
+              {% if c.caption %}<p>{{ c.caption }}</p>{% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p><a class="link" href="{{ url_for('fishing') }}#mural">Ver o mural de pescarias e mandar a sua foto</a></p>
+      </section>
+      {% endif %}
+
       {% if faq %}
       <section class="block faq">
         <h2>Antes de reservar</h2>

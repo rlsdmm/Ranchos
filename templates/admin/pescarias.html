@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Pescarias{% endblock %}
+{% macro item(c) %}
+<li class="catch">
+  <a href="{{ c.url() }}" target="_blank" rel="noopener"><img src="{{ c.url('t') }}" alt="{{ c.species_name }}" loading="lazy" width="{{ c.width }}" height="{{ c.height }}"></a>
+  <div class="catch-body">
+    <p class="catch-fish">{{ c.species_name }}{% if c.name %} · <span class="muted">{{ c.name }}</span>{% endif %}</p>
+    {% if c.caption %}<p>{{ c.caption }}</p>{% endif %}
+    <p class="small muted">{{ c.created_at|local }}{% if c.rancho %} · {{ c.rancho.name }}{% endif %}</p>
+    <div class="row-btns">
+      {% if c.approved %}
+      <form method="post" action="{{ url_for('admin_catch_action', cid=c.id, action='ocultar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-outline">Tirar do site</button></form>
+      {% else %}
+      <form method="post" action="{{ url_for('admin_catch_action', cid=c.id, action='aprovar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-dark">Aprovar</button></form>
+      {% endif %}
+      <form method="post" action="{{ url_for('admin_catch_action', cid=c.id, action='excluir') }}" data-confirm="Excluir esta foto de vez?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-outline danger">Excluir</button></form>
+    </div>
+  </div>
+</li>
+{% endmacro %}
+{% block content %}
+<div class="edit-head">
+  <h1>Pescarias</h1>
+  <div class="actions"><a href="{{ url_for('fishing') }}#mural" target="_blank">Ver mural no site ↗</a></div>
+</div>
+<p class="muted">Fotos que os turistas mandam pela <a class="link" href="{{ url_for('fishing') }}" target="_blank">página de pesca</a>. Nada aparece no site antes de você aprovar.
+  Recuse foto que não for de pescaria daqui, peixe abaixo do tamanho mínimo ou peixe nativo pescado na piracema (1º/11 a 28/2).</p>
+
+<h2>Esperando aprovação ({{ pending|length }})</h2>
+{% if pending %}
+<ul class="catch-grid">{% for c in pending %}{{ item(c) }}{% endfor %}</ul>
+{% else %}
+<p class="muted">Nenhuma foto esperando.</p>
+{% endif %}
+
+{% if approved %}
+<h2>No site</h2>
+<ul class="catch-grid">{% for c in approved %}{{ item(c) }}{% endfor %}</ul>
+{% endif %}
+{% endblock %}

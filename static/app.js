@@ -602,6 +602,29 @@
       return file; // formato que o navegador não abre (ex.: HEIC no Chrome): o servidor decide
     }
   }
+  // Mural de pescarias: reduz a foto antes de enviar (foto de celular tem 5-12 MB e a internet
+  // de rancho costuma ser fraca)
+  document.querySelectorAll('form[data-shrink]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      if (form.dataset.ready) return;
+      e.preventDefault();
+      const input = form.querySelector('input[type=file]');
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+      if (input?.files[0] && window.DataTransfer) {
+        const small = await shrink(input.files[0]);
+        if (small !== input.files[0]) {
+          const dt = new DataTransfer();
+          dt.items.add(small);
+          input.files = dt.files;
+        }
+      }
+      form.dataset.ready = '1';
+      form.submit();
+    });
+  });
+
   // Envio em lotes: salva os dados do rancho e depois manda as fotos aos poucos,
   // para qualquer quantidade de fotos caber no limite por envio.
   const LOTE_MB = 20, LOTE_FOTOS = 15;

@@ -39,6 +39,9 @@ from sqlalchemy.orm import deferred
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import pesca
+from pesca import PEIXE, PEIXES
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -458,6 +461,35 @@ class Lead(db.Model):
     created_at = db.Column(db.DateTime, default=now_utc)
 
 
+class FishCatch(db.Model):
+    """Foto de pescaria mandada pelo turista. Só aparece no site depois que o administrador aprova.
+    Foto no mesmo esquema de Photo (WebP no Bunny ou no banco)."""
+    id = db.Column(db.Integer, primary_key=True)
+    species = db.Column(db.String(30), default="")    # chave de pesca.PEIXE; vazio = outro peixe
+    caption = db.Column(db.String(300), default="")
+    name = db.Column(db.String(60), default="")       # primeiro nome de quem pescou
+    rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="SET NULL"), index=True)
+    approved = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=now_utc)
+    width = db.Column(db.Integer, default=0)
+    height = db.Column(db.Integer, default=0)
+    etag = db.Column(db.String(40), default="")
+    cdn_key = db.Column(db.String(120), default="")
+    full = deferred(db.Column(db.LargeBinary, nullable=False))
+    thumb = deferred(db.Column(db.LargeBinary, nullable=False))
+
+    rancho = db.relationship("Rancho")
+
+    @property
+    def species_name(self):
+        return PEIXE[self.species]["nome"] if self.species in PEIXE else "Outro peixe"
+
+    def url(self, s="f"):
+        if self.cdn_key:
+            return f"{BUNNY_CDN_URL}/{self.cdn_key}-{s}.webp"
+        return url_for("catch_image", cid=self.id, s="t" if s == "t" else None)
+
+
 with app.app_context():
     try:
         db.create_all()
@@ -716,7 +748,7 @@ def log_event(rancho_id, kind, provider_id=None):
 # Origem das visitas
 # ---------------------------------------------------------------------------
 # Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
-LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "provider_page", "about", "safety_guide"}
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "provider_page", "about", "safety_guide", "fishing"}
 # Site de onde veio (pelo Referer) -> nome da origem
 REFERRER_SOURCES = [
     (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
@@ -1041,7 +1073,8 @@ def counts_since(since, rancho_id=None):
 def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
                 AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, DRINK_NOTICE=DRINK_NOTICE, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
-                current_owner=current_owner, site_url=site_url, year=datetime.now().year)
+                current_owner=current_owner, site_url=site_url, year=datetime.now().year,
+                pending_catches=lambda: FishCatch.query.filter_by(approved=False).count())
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc
@@ -1417,7 +1450,9 @@ def rancho(slug):
     areas = [(k, label, len(ps)) for k, label, ps in tour if k != "outras"]  # botões na mesma ordem
     return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
                            areas=areas if len(areas) > 1 else [], tour=tour,
-                           providers=public_providers()[:3])
+                           providers=public_providers()[:3],
+                           catches=FishCatch.query.filter_by(rancho_id=r.id, approved=True)
+                           .order_by(FishCatch.created_at.desc()).limit(6).all())
 
 
 @app.route("/rancho/<slug>/whatsapp")
@@ -1555,6 +1590,92 @@ def servicos_whatsapp():
     return redirect(f"https://wa.me/{SITE_WHATSAPP}?text={quote(msg)}")
 
 
+# ---------------------------------------------------------------------------
+# Pesca: peixes da represa, regras da piracema e mural de pescarias dos turistas
+# ---------------------------------------------------------------------------
+CATCH_LIMIT_DAY = 5      # fotos de pescaria por pessoa (sessão) por dia
+CATCH_MAX_PENDING = 300  # fila cheia: para de aceitar até o administrador olhar
+
+
+def in_piracema(d=None):
+    return (d or today_br()).month in (11, 12, 1, 2)  # 1º de novembro a 28/29 de fevereiro
+
+
+def save_catch_photo(c, file_storage):
+    res = process_image(file_storage)
+    if not res:
+        return False
+    full, thumb, w, h = res
+    etag = hashlib.sha1(full).hexdigest()[:16]
+    key = ""
+    if BUNNY_ON:
+        key = f"{BUNNY_PREFIX}/pescarias/{etag}-{secrets.token_hex(3)}"
+        bunny_upload(key, full, thumb)
+        full = thumb = b""
+    c.width, c.height, c.etag, c.cdn_key, c.full, c.thumb = w, h, etag, key, full, thumb
+    return True
+
+
+@app.route("/pesca")
+def fishing():
+    catches = FishCatch.query.filter_by(approved=True).order_by(FishCatch.created_at.desc()).limit(36).all()
+    ranchos = public_ranchos().all()
+    for_fishing = [r for r in default_order(ranchos) if {"pesca", "rampa"} & set(r.amenity_list)]
+    lds = [breadcrumb_ld(("Ranchos", "/"), ("Pesca", "/pesca"))]
+    return render_template("pesca.html", catches=catches, ranchos=ranchos, for_fishing=for_fishing[:6],
+                           n_fishing=len(for_fishing), pesca=pesca, piracema=in_piracema(), lds=lds,
+                           sent=bool(request.args.get("enviado")))
+
+
+@app.route("/pesca/enviar", methods=["POST"])
+def fishing_send():
+    check_csrf()
+    back = url_for("fishing") + "#mural"
+    if request.form.get("website"):  # honeypot anti-spam
+        return redirect(back)
+    photo = request.files.get("photo")
+    if not photo or not photo.filename:
+        flash("Escolha a foto da pescaria.", "error")
+        return redirect(back)
+    if not request.form.get("consent"):
+        flash("Marque a autorização para publicar a foto.", "error")
+        return redirect(back)
+    today = today_br().isoformat()
+    sent = session.get("catches") or {}
+    if sent.get("d") != today:
+        sent = {"d": today, "n": 0}
+    if sent["n"] >= CATCH_LIMIT_DAY or FishCatch.query.filter_by(approved=False).count() >= CATCH_MAX_PENDING:
+        flash("Recebemos muitas fotos agora. Tente de novo amanhã.", "error")
+        return redirect(back)
+    species = request.form.get("species", "")
+    r = db.session.get(Rancho, to_int(request.form.get("rancho_id"))) if request.form.get("rancho_id") else None
+    c = FishCatch(species=species if species in PEIXE else "",
+                  caption=request.form.get("caption", "").strip()[:300],
+                  name=request.form.get("name", "").strip()[:60],
+                  rancho_id=r.id if r and r.public else None)
+    if not save_catch_photo(c, photo):
+        flash("Não consegui abrir essa foto. Tente outra, em JPG ou PNG.", "error")
+        return redirect(back)
+    db.session.add(c)
+    db.session.commit()
+    sent["n"] += 1
+    session["catches"] = sent
+    return redirect(url_for("fishing", enviado=1) + "#mural")
+
+
+@app.route("/img/pesca/<int:cid>")
+def catch_image(cid):
+    """Foto guardada no banco (sem Bunny). Foto ainda não aprovada só o administrador vê."""
+    c = db.session.get(FishCatch, cid)
+    if not c or not (c.approved or is_admin()):
+        abort(404)
+    if c.cdn_key:
+        return redirect(c.url(request.args.get("s", "f")))
+    resp = Response(c.thumb if request.args.get("s") == "t" else c.full, mimetype="image/webp")
+    resp.headers["Cache-Control"] = "public, max-age=86400" if c.approved else "private, no-store"
+    return resp
+
+
 @app.route("/anuncie", methods=["GET", "POST"])
 def anuncie():
     sent = False
@@ -1606,7 +1727,7 @@ def robots():
 def sitemap():
     base = site_url()
     urls = [(f"{base}/", None), (f"{base}/anuncie", None), (f"{base}/sobre", None),
-            (f"{base}/como-alugar-com-seguranca", None)]
+            (f"{base}/como-alugar-com-seguranca", None), (f"{base}/pesca", None)]
     ranchos = public_ranchos().all()
     for slug, _, _ in categories_with_ranchos(ranchos):
         urls.append((f"{base}/ranchos/{slug}", None))
@@ -1791,6 +1912,37 @@ def admin_home():
     }
     return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals,
                            sources=source_stats(since), billing=billing_rows(ranchos), today=today_br())
+
+
+@app.route("/admin/pescarias")
+@admin_required
+def admin_catches():
+    pending = FishCatch.query.filter_by(approved=False).order_by(FishCatch.created_at).all()
+    approved = FishCatch.query.filter_by(approved=True).order_by(FishCatch.created_at.desc()).limit(60).all()
+    return render_template("admin/pescarias.html", pending=pending, approved=approved)
+
+
+@app.route("/admin/pescarias/<int:cid>/<action>", methods=["POST"])
+@admin_required
+def admin_catch_action(cid, action):
+    c = db.session.get(FishCatch, cid) or abort(404)
+    if action == "aprovar":
+        c.approved = True
+        flash("Foto aprovada: já está no mural da página de pesca.", "ok")
+    elif action == "ocultar":
+        c.approved = False
+        flash("Foto tirada do site. Ela voltou para a fila.", "ok")
+    elif action == "excluir":
+        key = c.cdn_key
+        db.session.delete(c)
+        db.session.commit()
+        bunny_delete([key])
+        flash("Foto excluída.", "ok")
+        return redirect(url_for("admin_catches"))
+    else:
+        abort(404)
+    db.session.commit()
+    return redirect(url_for("admin_catches"))
 
 
 def billing_rows(ranchos):

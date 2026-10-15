@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% from "_card.html" import card with context %}
+{% block title %}Pesca em {{ CITY_NAME }}: peixes do Rio Grande, piracema e regras | {{ SITE_NAME }}{% endblock %}
+{% block description %}Peixes que dão na represa de {{ CITY_NAME }} (tucunaré, corvina, traíra, piau, curimbatá e mais), o que pode pescar na piracema, licença de pesca e fotos de pescarias de quem veio.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('fishing') }}">
+  <meta property="og:title" content="Pesca em {{ CITY_NAME }}: peixes, piracema e mural de pescarias">
+  <meta property="og:description" content="Tucunaré, corvina, traíra, piau e mais. Veja o que pode pescar na piracema e mande a foto da sua pescaria.">
+  <meta property="og:type" content="article">
+  <meta property="og:image" content="{{ site_url() }}{{ url_for('static', filename='peixes/tucunare.webp') }}">
+{% endblock %}
+{% block content %}
+<article class="wrap fish-page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Pesca</nav>
+  <h1>Pesca em {{ CITY_NAME }}</h1>
+  <p class="intro">A represa do Rio Grande em {{ CITY_NAME }} é conhecida pelo tucunaré, mas dá muito mais peixe.
+    Veja os peixes que o pessoal daqui pega, o que pode pescar em cada época e mande a foto da sua pescaria pro mural.</p>
+  <nav class="fish-jump" aria-label="Nesta página">
+    <a href="#peixes">Peixes</a><a href="#mural">Mural de pescarias</a><a href="#regras">Piracema e regras</a><a href="#ranchos">Ranchos para pescar</a>
+  </nav>
+
+  {% if piracema %}
+  <p class="fish-alert"><strong>Estamos na piracema</strong> (1º de novembro a 28 de fevereiro). Na represa, só pode pescar as espécies
+    que não são nativas, como tucunaré, corvina e oscar. <a class="link" href="#regras">Veja as regras</a>.</p>
+  {% endif %}
+
+  <section id="peixes" class="fish-sec">
+    <h2>Peixes que dão aqui</h2>
+    <p class="muted">Lista feita por quem mora e pesca na rua dos ranchos.</p>
+    <ul class="fish-grid">
+      {% for p in pesca.PEIXES %}
+      <li class="fish-card" id="peixe-{{ p.key }}">
+        <img class="{% if p.key == 'corvina' %}fit{% endif %}" src="{{ url_for('static', filename='peixes/' ~ p.key ~ '.webp') }}"
+             alt="{{ p.nome }}" loading="lazy" width="1000" height="625">
+        <div class="fish-body">
+          <h3>{{ p.nome }}</h3>
+          {% if p.outros %}<p class="fish-also">{{ p.outros }} · <i>{{ p.cientifico }}</i></p>
+          {% else %}<p class="fish-also"><i>{{ p.cientifico }}</i></p>{% endif %}
+          {% if p.nativa == False %}<p class="fish-tag ok">Liberado na piracema, com cota</p>
+          {% elif p.nativa %}<p class="fish-tag no">Proibido na piracema</p>
+          {% else %}<p class="fish-tag maybe">Na piracema, solte</p>{% endif %}
+          <p>{{ p.sobre }}</p>
+          <p class="fish-tip"><strong>Dica:</strong> {{ p.dica }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section id="mural" class="fish-sec">
+    <h2>Mural de pescarias</h2>
+    <p class="muted">Fotos de quem pescou em {{ CITY_NAME }}. Pegou um peixe bonito? Manda a foto que a gente coloca aqui.</p>
+    {% if sent %}<p class="flash">Foto recebida, obrigado! Ela aparece no mural assim que a gente conferir.</p>{% endif %}
+    {% if catches %}
+    <ul class="catch-grid">
+      {% for c in catches %}
+      <li class="catch">
+        <a href="{{ c.url() }}" target="_blank" rel="noopener"><img src="{{ c.url('t') }}" alt="{{ c.species_name }}{% if c.name %} pescado por {{ c.name }}{% endif %}" loading="lazy" width="{{ c.width }}" height="{{ c.height }}"></a>
+        <div class="catch-body">
+          <p class="catch-fish">{{ c.species_name }}{% if c.name %} · <span class="muted">{{ c.name }}</span>{% endif %}</p>
+          {% if c.caption %}<p>{{ c.caption }}</p>{% endif %}
+          {% if c.rancho and c.rancho.public %}<p class="small"><a class="link" href="{{ url_for('rancho', slug=c.rancho.slug) }}">{{ c.rancho.name }}</a></p>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="catch-empty">O mural ainda está vazio. A primeira foto pode ser a sua!</p>
+    {% endif %}
+
+    <details class="form-card catch-form"{% if not catches %} open{% endif %}>
+      <summary>📸 Mandar a foto da minha pescaria</summary>
+      <form method="post" action="{{ url_for('fishing_send') }}" enctype="multipart/form-data" class="form" data-shrink>
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <label class="hp" aria-hidden="true">Site <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        <div class="upload">
+          <span>Escolher a foto</span>
+          <small class="muted">Foto deitada, com o peixe bem aparecendo</small>
+          <input type="file" name="photo" accept="image/*" required aria-label="Foto da pescaria">
+        </div>
+        <label>Que peixe é?
+          <select name="species">
+            {% for p in pesca.PEIXES if p.key != 'camarao' %}<option value="{{ p.key }}">{{ p.nome }}</option>{% endfor %}
+            <option value="">Outro peixe</option>
+          </select>
+        </label>
+        <label>Conta como foi <span class="muted">(opcional)</span>
+          <textarea name="caption" rows="3" maxlength="300" placeholder="Ex.: tucunaré de 3 kg na galhada, de manhã cedo, com isca de superfície"></textarea>
+        </label>
+        <label>Seu primeiro nome <span class="muted">(opcional)</span> <input type="text" name="name" maxlength="60" autocomplete="given-name"></label>
+        <label>Ficou em qual rancho? <span class="muted">(opcional)</span>
+          <select name="rancho_id">
+            <option value="">Não fiquei em rancho do site</option>
+            {% for r in ranchos|sort(attribute='name') %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="consent" value="1" required> Autorizo publicar esta foto no site, e ela foi tirada por mim ou por alguém do meu grupo.</label>
+        <p class="small muted">Antes de aparecer, a gente confere cada foto. Peixe abaixo do tamanho mínimo ou nativo pescado na piracema não entra no mural.</p>
+        <button class="btn btn-dark">Enviar foto</button>
+      </form>
+    </details>
+  </section>
+
+  <section id="regras" class="fish-sec fish-rules">
+    <h2>Piracema e regras de pesca</h2>
+    <p>{{ CITY_NAME }} fica na bacia do rio Paraná, então vale a regra federal do defeso (Instrução Normativa do Ibama nº 25/2009).
+      A <strong>piracema vai de 1º de novembro a 28 de fevereiro</strong>, todo ano, e vale para o rio, os afluentes e as represas.</p>
+    <h3>Na piracema, na represa, pode</h3>
+    <ul class="page-list check">
+      <li>Pescar <strong>só espécies não nativas</strong>, como tucunaré, corvina, oscar (apaiari), tilápia e piranha-preta.</li>
+      <li>Pesca embarcada ou de barranco, com linha de mão, vara, caniço, molinete ou carretilha, e isca natural ou artificial.</li>
+      <li>Levar até <strong>10 kg mais um exemplar</strong> por pescador amador.</li>
+    </ul>
+    <h3>Na piracema, não pode</h3>
+    <ul class="page-list no">
+      <li>Pescar, transportar ou guardar <strong>peixe nativo</strong>, como traíra, piau, curimbatá, piranha-amarela, jacundá e piauçu.</li>
+      <li>Usar <strong>animais aquáticos como isca</strong>: camarão, lambari ou outro peixe, vivo ou morto. A exceção é peixe vivo de criação, com nota fiscal.</li>
+      <li>Pescar a menos de <strong>1.500 m de barragens</strong> ou a menos de 500 m da boca de rios, córregos e canais, e nas lagoas marginais.</li>
+      <li>Pesca subaquática e o uso de arpão, fisga ou bicheiro.</li>
+      <li>Torneios de pesca, a não ser em represa e só valendo espécies não nativas.</li>
+    </ul>
+    <p>Fora da piracema, a pesca amadora é liberada com os equipamentos permitidos, respeitando o tamanho mínimo de cada espécie e
+      as áreas proibidas. Na dúvida sobre o tamanho, solte o peixe.</p>
+    <h3>Licença de pesca</h3>
+    <p>Pescador amador precisa de licença, que sai pela internet no <a class="link" href="{{ pesca.LICENCA_URL }}" target="_blank" rel="noopener">gov.br</a>,
+      vale por 1 ano no Brasil todo e tem dois tipos: <strong>desembarcada</strong> (de barranco) e <strong>embarcada</strong> (de barco).
+      Ande com ela no celular ou impressa.</p>
+    <p class="small muted">Resumo feito pelo {{ SITE_NAME }}, conferido em {{ pesca.REGRAS_CONFERIDAS }}. Ele não substitui a
+      <a class="link" href="{{ pesca.FONTE_DEFESO }}" target="_blank" rel="noopener">norma oficial</a>, e o estado pode ter regras mais rígidas:
+      em caso de dúvida, consulte a Polícia Militar Ambiental.</p>
+  </section>
+
+  {% if for_fishing %}
+  <section id="ranchos" class="fish-sec">
+    <div class="results-head">
+      <h2>Ranchos bons para pescar</h2>
+      {% if n_fishing > for_fishing|length %}<a class="link" href="{{ url_for('category', slug='para-pesca') }}">Ver todos</a>{% endif %}
+    </div>
+    <ul class="grid">
+      {% for r in for_fishing %}{{ card(r) }}{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="fish-sec">
+    <h2 class="small-h">Créditos das fotos dos peixes</h2>
+    <ul class="credits small muted">
+      {% for p in pesca.PEIXES %}{% set cr = pesca.CREDITO[p.key] %}
+      <li>{{ p.nome }}: <a href="{{ cr[2] }}" target="_blank" rel="noopener nofollow">{{ cr[0] }}</a>, {{ cr[1] }}, via Wikimedia Commons</li>
+      {% endfor %}
+    </ul>
+  </section>
+</article>
+{% endblock %}
