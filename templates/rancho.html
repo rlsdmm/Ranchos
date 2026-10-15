@@ -111,6 +111,8 @@
         {% if r.rules %}<ul class="rules">{% for line in r.rules.split('\n') if line.strip() %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
       </section>
       {% endif %}
+      <p class="eco-note">🌿 Ao ir embora, leve o lixo ou deixe no lugar que o dono indicar, e não deixe resto de peixe na beirada.
+        O rio agradece. <a class="link" href="{{ url_for('fishing') }}#cuide">Dicas para cuidar do rio</a></p>
 
       {% if r.maps_url %}
       <section class="block" id="localizacao">

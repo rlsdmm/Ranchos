@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=29">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=30">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -45,6 +45,7 @@
       <div>
         <p class="brand">{{ SITE_NAME }}</p>
         <p class="muted">Ranchos para alugar em {{ CITY_NAME }}. A negociação e o pagamento são feitos direto com o dono do rancho.</p>
+        <p class="eco-foot">🌿 Rio limpo é rancho bom: leve seu lixo de volta. <a href="{{ url_for('fishing') }}#cuide">Como cuidar do rio</a></p>
       </div>
       <div class="footer-links">
         <a href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>

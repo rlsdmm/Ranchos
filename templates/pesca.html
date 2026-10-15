@@ -16,7 +16,7 @@
   <p class="intro">A represa do Rio Grande em {{ CITY_NAME }} é conhecida pelo tucunaré, mas dá muito mais peixe.
     Veja os peixes que o pessoal daqui pega, o que pode pescar em cada época e mande a foto da sua pescaria pro mural.</p>
   <nav class="fish-jump" aria-label="Nesta página">
-    <a href="#peixes">Peixes</a><a href="#mural">Mural de pescarias</a><a href="#regras">Piracema e regras</a><a href="#ranchos">Ranchos para pescar</a>
+    <a href="#peixes">Peixes</a><a href="#mural">Mural de pescarias</a><a href="#regras">Piracema e regras</a><a href="#cuide">Cuide do rio</a><a href="#ranchos">Ranchos para pescar</a>
   </nav>
 
   {% if piracema %}
@@ -128,6 +128,17 @@
     <p class="small muted">Resumo feito pelo {{ SITE_NAME }}, conferido em {{ pesca.REGRAS_CONFERIDAS }}. Ele não substitui a
       <a class="link" href="{{ pesca.FONTE_DEFESO }}" target="_blank" rel="noopener">norma oficial</a>, e o estado pode ter regras mais rígidas:
       em caso de dúvida, consulte a Polícia Militar Ambiental.</p>
+  </section>
+
+  <section id="cuide" class="fish-sec fish-rules eco">
+    <h2>🌿 Cuide do rio</h2>
+    <p>O rio limpo é o que faz a pescaria e o rancho valerem a pena. Umas coisas simples ajudam muito:</p>
+    <ul class="page-list check">
+      <li><strong>Linha, anzol e chumbada não vão pro rio.</strong> Linha perdida enrosca em peixe, pássaro e hélice de barco. Guarde a sobra num saquinho e jogue no lixo.</li>
+      <li><strong>Não deixe cabeça e resto de peixe na beirada.</strong> Apodrece e fede bastante. Coloque no lixo ou enterre, longe de onde o pessoal nada.</li>
+      <li><strong>Leve o lixo embora</strong>, ou deixe no lugar que o dono do rancho indicar. Lata, garrafa e saco plástico na beira acabam indo pra água.</li>
+      <li><strong>Peixe pequeno ou nativo na piracema: solte com cuidado.</strong> Molhe a mão antes de pegar, tire o anzol rápido e devolva o peixe na água sem jogar.</li>
+    </ul>
   </section>
 
   {% if for_fishing %}

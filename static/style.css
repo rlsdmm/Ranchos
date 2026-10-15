@@ -863,3 +863,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .catch-body p { font-size: 14px; }
   .catch-form summary, .catch-form .form { padding-inline: 16px; }
 }
+/* lembretes de cuidar do rio: página do rancho e rodapé */
+.eco-note { margin: 18px 0 0; padding: 12px 14px; border-radius: var(--r); background: #e9f4ee; color: #1d4a35; font-size: 15px; max-width: 68ch; }
+.eco-foot { margin: 14px 0 0; font-size: 15px; color: #fff; }
+.eco-foot a { color: var(--sol); font-weight: 700; }
+.fish-sec.eco { background: #e9f4ee; border-radius: var(--r-lg); padding: 20px 22px 8px; }
+@media (max-width: 600px) { .fish-sec.eco { padding: 16px 16px 4px; margin-inline: -4px; } }
