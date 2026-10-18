@@ -1289,6 +1289,8 @@ def rancho_faq(r):
     if r.checkin or r.checkout:
         parts = ([f"entrada a partir das {r.checkin}"] if r.checkin else []) + ([f"saída até as {r.checkout}"] if r.checkout else [])
         q.append(("Qual o horário de entrada e saída?", join_pt(parts).capitalize() + "."))
+    else:
+        q.append(("Qual o horário de entrada e saída?", "O horário de entrada e saída é combinado direto com o dono."))
     if (r.min_nights or 1) > 1:
         q.append(("Tem mínimo de diárias?", f"Sim, {r.min_nights} diárias."))
     q.append(("Como reservar?", f"Fale direto com {dono} pelo WhatsApp, no botão desta página. Datas, valor e sinal "

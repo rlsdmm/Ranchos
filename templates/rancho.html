@@ -102,15 +102,16 @@
       </section>
       {% endif %}
 
-      {% if r.checkin or r.checkout or r.rules %}
       <section class="block">
         <h2>Regras da casa</h2>
         {% if r.checkin or r.checkout %}
         <p>{% if r.checkin %}Entrada a partir das <strong>{{ r.checkin }}</strong>{% endif %}{% if r.checkin and r.checkout %}. {% endif %}{% if r.checkout %}Saída até as <strong>{{ r.checkout }}</strong>{% endif %}.</p>
+        {% elif 'horário' not in (r.rules or '')|lower %}
+        {# Sem horário cadastrado: combina com o dono (quem já escreveu nas regras não repete) #}
+        <p>Horário de entrada e saída: <strong>a combinar</strong> com o dono.</p>
         {% endif %}
         {% if r.rules %}<ul class="rules">{% for line in r.rules.split('\n') if line.strip() %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
       </section>
-      {% endif %}
       <p class="eco-note">🌿 Ao ir embora, leve o lixo ou deixe no lugar que o dono indicar, e não deixe resto de peixe na beirada.
         O rio agradece. <a class="link" href="{{ url_for('fishing') }}#cuide">Dicas para cuidar do rio</a></p>
 
