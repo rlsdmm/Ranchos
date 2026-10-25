@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% block title %}Reservas{% endblock %}
+{% macro row(b) %}
+<li class="bk {{ 'bk-' ~ b.status }}" id="b{{ b.id }}">
+  <div class="bk-head">
+    <strong>{{ b.name }}</strong>
+    <span class="badge{{ ' badge-ok' if b.status == 'confirmada' }}">{{ STATUS[b.status] }}</span>
+  </div>
+  <p class="bk-what">{{ b.rancho.name }} · <strong>{{ b.period }}</strong> · {{ b.nights|length }} {{ 'diária' if b.nights|length == 1 else 'diárias' }} · {{ b.guests }} {{ 'pessoa' if b.guests == 1 else 'pessoas' }}</p>
+  <p class="small muted">{{ 'Valor combinado' if b.total else 'Valor pelo site' }}: {{ brl(b.value) if b.value else 'a combinar' }} · WhatsApp {{ b.phone }} · pedido {{ b.created_at|ago }}</p>
+  {% if b.message %}<p class="small">“{{ b.message }}”</p>{% endif %}
+  {% if clash.get(b.id) %}<p class="small danger">⚠ Já tem dia ocupado na agenda nessas datas ({{ clash[b.id] }}).</p>{% endif %}
+
+  {% if b.status == 'pedido' %}
+  <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="bk-actions">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="small">Valor da reserva (R$)
+      <input name="total" inputmode="numeric" value="{{ b.estimate or '' }}" placeholder="a combinar"></label>
+    <button class="btn btn-dark btn-sm" name="action" value="confirmar">Confirmar reserva</button>
+    <button class="btn btn-outline btn-sm" name="action" value="recusar" data-confirm="Recusar o pedido de {{ b.name }}?">Recusar</button>
+  </form>
+  {% elif b.status in ('confirmada', 'recusada') %}
+  <div class="bk-actions">
+    <a class="btn btn-zap btn-sm" href="https://wa.me/{{ b.phone_digits }}?text={{ guest_text(b)|urlencode }}" target="_blank" rel="noopener">Avisar {{ b.name.split()[0] if b.name else 'o turista' }} no WhatsApp</a>
+    {% if b.status == 'confirmada' and b.end >= today %}
+    <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" data-confirm="Cancelar a reserva de {{ b.name }}? As datas voltam a ficar livres na agenda.">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="linkbtn small" name="action" value="cancelar">Cancelar reserva</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+  <p class="small"><a class="link" href="{{ url_for('booking_page', token=b.token) }}" target="_blank">Página do pedido ↗</a></p>
+</li>
+{% endmacro %}
+{% block content %}
+<h1>Pedidos de reserva</h1>
+<p class="muted">O turista escolhe as datas no site e manda o pedido no seu WhatsApp. Confirme ou recuse aqui: confirmada, as datas ficam ocupadas na agenda sozinhas.</p>
+
+<h2>Esperando resposta{% if pending %} ({{ pending|length }}){% endif %}</h2>
+{% if pending %}<ul class="bk-list">{% for b in pending %}{{ row(b) }}{% endfor %}</ul>
+{% else %}<p class="muted">Nenhum pedido esperando.</p>{% endif %}
+
+<h2>Próximas reservas</h2>
+{% if upcoming %}<ul class="bk-list">{% for b in upcoming %}{{ row(b) }}{% endfor %}</ul>
+{% else %}<p class="muted">Nenhuma reserva confirmada pela frente.</p>{% endif %}
+
+{% if past %}
+<h2>Anteriores</h2>
+<ul class="bk-list bk-past">{% for b in past %}{{ row(b) }}{% endfor %}</ul>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,10 @@
 {% extends "admin/base.html" %}
 {% block title %}Painel{% endblock %}
 {% block content %}
+{% set npb = pending_bookings() %}
+{% if npb %}
+<a class="pending-box bk-alert" href="{{ url_for('admin_bookings') }}"><strong>📅 {{ npb }} {{ 'pedido de reserva esperando' if npb == 1 else 'pedidos de reserva esperando' }} resposta do dono</strong> · Ver pedidos →</a>
+{% endif %}
 {% set pendentes = ranchos|selectattr('pending')|list %}
 {% if pendentes %}
 <section class="pending-box">

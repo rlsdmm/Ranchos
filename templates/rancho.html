@@ -96,7 +96,7 @@
       {% if months %}
       <section class="block" id="agenda">
         <h2>Agenda</h2>
-        <p class="muted small">Toque na data de chegada e na de saída para perguntar ao dono por elas.
+        <p class="muted small">Toque na data de chegada e na de saída para {{ 'pedir a reserva' if r.booking_on else 'perguntar ao dono por elas' }}.
           Atualizada pelo dono {{ r.calendar_updated_at|ago }} ({{ (r.calendar_updated_at|local)[:10] }}); confirme sempre no WhatsApp.</p>
         {{ calendar(months, mode="public") }}
       </section>
@@ -187,7 +187,26 @@
           <div><dt>Feriados</dt><dd>{{ r.price_holiday or 'A combinar' }}</dd></div>
           {% if r.min_nights and r.min_nights > 1 %}<div><dt>Mínimo</dt><dd>{{ r.min_nights }} diárias</dd></div>{% endif %}
         </dl>
-        {% if r.whatsapp_digits %}
+        {% if r.booking_on and r.whatsapp_digits %}
+          {% set bf = session.get('booking_form', {}) %}
+          <form class="form book-form" method="post" action="{{ url_for('rancho_book', slug=r.slug) }}"
+                data-quote="{{ url_for('rancho_quote', slug=r.slug) }}">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <label class="hp" aria-hidden="true">Site <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+            <div class="cols-2 book-dates">
+              <label>Chegada <input type="date" name="de" required min="{{ today_iso }}" value="{{ request.args.get('de', '') }}"></label>
+              <label>Saída <input type="date" name="ate" required min="{{ today_iso }}" value="{{ request.args.get('ate', '') }}"></label>
+            </div>
+            {% if months %}<a class="small link book-cal-link" href="#agenda">📅 Ver na agenda os dias livres</a>{% endif %}
+            <label>Pessoas <input type="number" name="pessoas" required min="1" {% if r.capacity %}max="{{ r.capacity }}"{% endif %} inputmode="numeric" value="{{ request.args.get('pessoas', '') }}" placeholder="{{ 'Até ' ~ r.capacity if r.capacity else '' }}"></label>
+            <div class="book-quote" aria-live="polite" hidden></div>
+            <label>Seu nome <input type="text" name="name" required maxlength="120" autocomplete="name" value="{{ bf.get('name', '') }}"></label>
+            <label>Seu WhatsApp com DDD <input type="tel" name="phone" required maxlength="40" autocomplete="tel" placeholder="(16) 99999-9999" value="{{ bf.get('phone', '') }}"></label>
+            <button class="btn btn-sun btn-block" type="submit">Pedir reserva</button>
+            <p class="small muted">Sem compromisso: {{ r.owner_name.split()[0] if r.owner_name else 'o dono' }} confirma as datas e o valor, e você só paga depois.</p>
+          </form>
+          <p class="book-or small">Prefere conversar antes? <a class="link js-wa" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">Falar no WhatsApp</a></p>
+        {% elif r.whatsapp_digits %}
           {% if months %}
           <p class="sel-dates small" id="sel-dates" hidden>
             <span>📅 <strong class="js-sel-text"></strong></span>
@@ -243,7 +262,11 @@
   <div>
     {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>{% else %}<strong>Consulte</strong>{% endif %}
   </div>
+  {% if r.booking_on %}
+  <a class="btn btn-sun" href="#reservar">Pedir reserva</a>
+  {% else %}
   <a class="btn btn-zap js-wa" href="{{ url_for('rancho_whatsapp', slug=r.slug) }}" rel="nofollow">Falar com {{ r.owner_name.split()[0] if r.owner_name else 'o dono' }}</a>
+  {% endif %}
 </div>
 {% endif %}
 

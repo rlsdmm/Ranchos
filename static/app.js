@@ -371,6 +371,9 @@
   document.querySelectorAll('form[data-confirm]').forEach((f) => {
     f.addEventListener('submit', (e) => { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
   });
+  document.querySelectorAll('button[data-confirm]').forEach((b) => { // um botão só, no form com outros
+    b.addEventListener('click', (e) => { if (!confirm(b.dataset.confirm)) e.preventDefault(); });
+  });
 
   // Copy buttons
   document.querySelectorAll('[data-copy]').forEach((btn) => {
@@ -422,8 +425,14 @@
     const hint = document.getElementById('sel-hint');
     const waLinks = [...document.querySelectorAll('.js-wa')];
     const waBase = waLinks.map((a) => a.getAttribute('href'));
-    let start = null, end = null;
+    const bookForm = document.querySelector('.book-form');
+    let start = bookForm?.elements.de.value || null, end = bookForm?.elements.ate.value || null;
     const paint = () => {
+      if (bookForm) { // datas tocadas na agenda vão para o formulário de reserva
+        bookForm.elements.de.value = start || '';
+        bookForm.elements.ate.value = end || '';
+        bookForm.dispatchEvent(new Event('datas'));
+      }
       pubCal.querySelectorAll('.cal-day.sel, .cal-day.in-range').forEach((b) => b.classList.remove('sel', 'in-range'));
       if (start) {
         daysBetween(start, end || start).forEach((iso) => dayBtn(iso)?.classList.add('in-range'));
@@ -443,16 +452,55 @@
       const b = e.target.closest('.cal-day');
       if (!b || b.disabled) return;
       const iso = b.dataset.day;
-      if (b.classList.contains('busy')) { b.blur(); return; } // ocupado: não seleciona
+      // Dia ocupado só serve de saída: a noite da saída não é usada
+      const asEnd = start && !end && iso > start;
+      if (b.classList.contains('busy') && !asEnd) { b.blur(); return; }
       if (!start || end || iso < start) { start = iso; end = null; }
       else if (iso === start) { start = null; }
-      else if (daysBetween(start, iso).some((d) => dayBtn(d)?.classList.contains('busy'))) {
+      else if (daysBetween(start, iso).slice(0, -1).some((d) => dayBtn(d)?.classList.contains('busy'))) {
         toast('Tem dia ocupado no meio desse período. Escolha outras datas.');
         start = iso; end = null;
       } else { end = iso; }
       paint();
+      // No celular o formulário fica longe da agenda: com as duas datas, leva até ele
+      if (bookForm && end && !matchMedia('(min-width: 760px)').matches) {
+        document.getElementById('reservar').scrollIntoView({ behavior: 'smooth' });
+      }
     });
     box?.querySelector('.js-sel-clear').addEventListener('click', () => { start = end = null; paint(); });
+    if (start) paint();
+  }
+
+  // Pedido de reserva: mostra o valor (ou o problema das datas) antes de enviar
+  const bookForm = document.querySelector('.book-form');
+  if (bookForm) {
+    const out = bookForm.querySelector('.book-quote');
+    const { de, ate, pessoas } = bookForm.elements;
+    let seq = 0;
+    const quote = async () => {
+      if (!de.value || !ate.value) { out.hidden = true; return; }
+      const n = ++seq;
+      const qs = new URLSearchParams({ de: de.value, ate: ate.value, pessoas: pessoas.value || '1' });
+      try {
+        const res = await (await fetch(`${bookForm.dataset.quote}?${qs}`)).json();
+        if (n !== seq) return; // chegou depois de uma consulta mais nova
+        out.replaceChildren();
+        out.classList.toggle('bad', !res.ok);
+        const line = (cls, text) => { const p = document.createElement('p'); p.className = cls; p.textContent = text; out.append(p); };
+        if (!res.ok) line('', res.erro);
+        else {
+          line('book-quote-period', res.periodo);
+          if (res.valor) line('book-quote-total', res.valor);
+          line('small muted', res.detalhe);
+        }
+        out.hidden = false;
+      } catch { out.hidden = true; }
+    };
+    de.addEventListener('change', () => { if (ate.value && ate.value <= de.value) ate.value = ''; ate.min = de.value; quote(); });
+    ate.addEventListener('change', quote);
+    pessoas.addEventListener('change', quote);
+    bookForm.addEventListener('datas', quote);
+    quote();
   }
 
   // Agenda do painel: dono toca no dia para marcar/liberar (ou marca um período)

@@ -9,6 +9,9 @@ Donos:    contas criadas pelo admin em /admin/donos. O dono entra no mesmo /admi
           (login + senha) e só vê e edita os próprios ranchos; rancho novo dele fica
           pendente até o admin aprovar. Verificado/destaque continuam só com o admin.
           Cada dono tem uma página pública /de/<slug> só com os ranchos dele (bio do Instagram).
+Reservas: rancho com "aceita pedido de reserva" ligado (pelo admin) mostra um formulário com
+          datas e pessoas. O pedido vira uma página /reserva/<token> para o turista e aparece em
+          /admin/reservas para o dono confirmar ou recusar. Confirmada, ocupa as datas na agenda.
 
 Banco:    DATABASE_URL (Postgres em produção). Sem ela, usa SQLite local.
 Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunny
@@ -244,6 +247,7 @@ class Rancho(db.Model):
     ical_url = db.Column(db.String(500), default="")
     ical_synced_at = db.Column(db.DateTime)
     ical_error = db.Column(db.String(200), default="")
+    booking_on = db.Column(db.Boolean, default=False)  # aceita pedido de reserva pelo site
     created_at = db.Column(db.DateTime, default=now_utc)
     updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
@@ -344,6 +348,45 @@ class BusyDay(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), nullable=False, index=True)
     day = db.Column(db.Date, nullable=False)
+
+
+class Booking(db.Model):
+    """Pedido de reserva feito pelo site. O turista acompanha em /reserva/<token> (sem login);
+    o dono confirma ou recusa no painel. As noites de uma reserva confirmada contam como
+    ocupadas na agenda (busy_set), sem virar BusyDay: a cópia da agenda externa não apaga."""
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), nullable=False, index=True)
+    start = db.Column(db.Date, nullable=False)  # chegada
+    end = db.Column(db.Date, nullable=False)    # saída (a noite da saída fica livre)
+    guests = db.Column(db.Integer, default=0)
+    name = db.Column(db.String(120), default="")
+    phone = db.Column(db.String(40), default="")
+    message = db.Column(db.String(1000), default="")
+    estimate = db.Column(db.Integer, default=0)  # valor pelos preços do anúncio; 0 = a combinar
+    total = db.Column(db.Integer, default=0)     # valor que o dono confirmou
+    status = db.Column(db.String(20), default="pedido", index=True)  # BOOKING_STATUS
+    created_at = db.Column(db.DateTime, default=now_utc)
+    decided_at = db.Column(db.DateTime)
+
+    rancho = db.relationship("Rancho", backref=db.backref("bookings", lazy="dynamic", passive_deletes=True))
+
+    @property
+    def nights(self):
+        return range_days(self.start, self.end)
+
+    @property
+    def period(self):
+        return f"{short_day(self.start)} a {short_day(self.end)}"
+
+    @property
+    def phone_digits(self):
+        d = re.sub(r"\D", "", self.phone or "")
+        return d if d.startswith("55") and len(d) > 11 else "55" + d
+
+    @property
+    def value(self):
+        return self.total or self.estimate
 
 
 class LoginThrottle(db.Model):
@@ -537,6 +580,7 @@ with app.app_context():
         ("provider", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
         ("provider", "delivery", "VARCHAR(200) DEFAULT ''"),
         ("owner", "slug", "VARCHAR(120)"),
+        ("rancho", "booking_on", "BOOLEAN DEFAULT FALSE"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -943,8 +987,75 @@ def calendar_months(busy, n=CALENDAR_MONTHS):
 
 
 def busy_set(r, start=None):
+    """Dias ocupados: os marcados na agenda (ou copiados da externa) mais as noites das reservas confirmadas."""
     start = start or today_br().replace(day=1)
-    return {b.day for b in r.busy_days.filter(BusyDay.day >= start)}
+    days = {b.day for b in r.busy_days.filter(BusyDay.day >= start)}
+    for b in r.bookings.filter(Booking.status == "confirmada", Booking.end > start):
+        days.update(b.nights)
+    return days
+
+
+# ---------------------------------------------------------------------------
+# Pedido de reserva
+# ---------------------------------------------------------------------------
+BOOKING_STATUS = {"pedido": "Aguardando o dono", "confirmada": "Confirmada", "recusada": "Recusada",
+                  "cancelada": "Cancelada"}
+BOOKING_MAX_NIGHTS = 30
+
+
+def short_day(d):
+    return f"{WEEKDAYS_PT[d.weekday()][:3]} {d:%d/%m}"
+
+
+def range_days(start, end):
+    """Noites de uma estadia: da chegada até a véspera da saída."""
+    return [start + timedelta(days=i) for i in range((end - start).days)]
+
+
+def booking_quote(r, start, end):
+    """Valor pelos preços do anúncio: (reais, explicação). 0 reais = a combinar com o dono.
+    Noite de sexta e de sábado é o pacote de fim de semana (um por fim de semana); as outras
+    noites são diárias avulsas. Feriado no período fica com o texto de feriado do anúncio."""
+    nights = range_days(start, end)
+    hol = {}
+    for y in {start.year, end.year}:
+        hol.update(br_holidays(y))
+    names = list(dict.fromkeys(hol[d] for d in nights + [end] if d in hol))
+    if names:
+        return 0, f"Feriado ({join_pt(names)}): {r.price_holiday or 'valor a combinar com o dono'}"
+    weekend = [d for d in nights if d.weekday() in (4, 5)] if r.price_weekend else []
+    packages = len({d + timedelta(days=5 - d.weekday()) for d in weekend})  # sábado de cada fim de semana
+    others = len(nights) - len(weekend)
+    parts = [f"{plural(packages, 'fim de semana', 'fins de semana')} {brl(packages * r.price_weekend)}"] if packages else []
+    if others:
+        if not r.price_night:
+            return 0, "Valor a combinar com o dono"
+        parts.append(f"{plural(others, 'diária', 'diárias')} {brl(others * r.price_night)}")
+    return packages * (r.price_weekend or 0) + others * (r.price_night or 0), " + ".join(parts)
+
+
+def booking_errors(r, start, end, guests):
+    today = today_br()
+    if not start or start < today:
+        return "Escolha a data de chegada."
+    if start > today + timedelta(days=400):
+        return "Essa data ainda está muito longe. Fale com o dono pelo WhatsApp."
+    if not end or end <= start:
+        return "A saída precisa ser depois da chegada."
+    nights = range_days(start, end)
+    if len(nights) > BOOKING_MAX_NIGHTS:
+        return f"Para mais de {BOOKING_MAX_NIGHTS} diárias, fale com o dono pelo WhatsApp."
+    taken = sorted(d for d in busy_set(r, start) if start <= d < end)
+    if taken:
+        return f"Tem dia ocupado nessas datas ({', '.join(f'{d:%d/%m}' for d in taken[:3])}). Escolha outras na agenda."
+    only_weekend = r.price_weekend and all(d.weekday() in (4, 5) for d in nights)  # pacote vale mesmo com 1 noite
+    if r.min_nights and len(nights) < r.min_nights and not only_weekend:
+        return f"O mínimo nesse rancho é de {r.min_nights} diárias."
+    if guests < 1:
+        return "Diga quantas pessoas vão."
+    if r.capacity and guests > r.capacity:
+        return f"O rancho recebe até {r.capacity} pessoas."
+    return None
 
 
 def ical_feed_url(url):
@@ -1098,7 +1209,8 @@ def inject_globals():
     return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
                 AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, DRINK_NOTICE=DRINK_NOTICE, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year,
-                pending_catches=lambda: FishCatch.query.filter_by(approved=False).count())
+                pending_catches=lambda: FishCatch.query.filter_by(approved=False).count(),
+                pending_bookings=lambda: visible_bookings().filter(Booking.status == "pedido").count())
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc
@@ -1491,6 +1603,7 @@ def rancho(slug):
         tour.append(("outras", "Outras fotos" if tour else "", by_area[""]))
     areas = [(k, label, len(ps)) for k, label, ps in tour if k != "outras"]  # botões na mesma ordem
     return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
+                           today_iso=today_br().isoformat(),
                            areas=areas if len(areas) > 1 else [], tour=tour,
                            providers=public_providers()[:3],
                            catches=FishCatch.query.filter_by(rancho_id=r.id, approved=True)
@@ -1511,6 +1624,88 @@ def rancho_whatsapp(slug):
         end = end if end and start <= end <= start + timedelta(days=60) else start
         msg += (f"{start:%d/%m/%Y}" if end == start else f"{start:%d/%m/%Y} a {end:%d/%m/%Y}") + "."
     return redirect(f"https://wa.me/{r.whatsapp_digits}?text={quote(msg)}")
+
+
+def booking_rancho(slug):
+    r = public_ranchos().filter_by(slug=slug).first_or_404()
+    if not (r.booking_on and r.whatsapp_digits):
+        abort(404)
+    return r
+
+
+@app.route("/rancho/<slug>/orcamento")
+def rancho_quote(slug):
+    """Valor e problemas das datas escolhidas, para o formulário mostrar antes de enviar."""
+    r = booking_rancho(slug)
+    start, end = parse_day(request.args.get("de")), parse_day(request.args.get("ate"))
+    err = booking_errors(r, start, end, max(1, to_int(request.args.get("pessoas"), 1)))
+    if err:
+        return {"ok": False, "erro": err}
+    total, detail = booking_quote(r, start, end)
+    return {"ok": True, "valor": brl(total) if total else "", "detalhe": detail,
+            "periodo": f"{short_day(start)} a {short_day(end)} · "
+                       f"{plural(len(range_days(start, end)), 'diária', 'diárias')}"}
+
+
+@app.route("/rancho/<slug>/reservar", methods=["POST"])
+def rancho_book(slug):
+    check_csrf()
+    r = booking_rancho(slug)
+    f = request.form
+    if f.get("website"):  # honeypot anti-spam
+        return redirect(url_for("rancho", slug=r.slug))
+    start, end = parse_day(f.get("de")), parse_day(f.get("ate"))
+    guests = to_int(f.get("pessoas"))
+    name, phone = f.get("name", "").strip()[:120], f.get("phone", "").strip()[:40]
+    err = booking_errors(r, start, end, guests)
+    if not err and (not name or len(re.sub(r"\D", "", phone)) < 10):
+        err = "Preencha seu nome e um WhatsApp com DDD."
+    if err:
+        flash(err, "error")
+        session["booking_form"] = {"name": name, "phone": phone}
+        args = {k: f.get(k) for k in ("de", "ate", "pessoas") if f.get(k)}
+        return redirect(url_for("rancho", slug=r.slug, **args) + "#reservar")
+    session.pop("booking_form", None)
+    b = Booking(token=secrets.token_urlsafe(12), rancho_id=r.id, start=start, end=end, guests=guests,
+                name=name, phone=phone, message=f.get("message", "").strip()[:1000],
+                estimate=booking_quote(r, start, end)[0])
+    db.session.add(b)
+    log_event(r.id, "pedido")
+    db.session.commit()
+    return redirect(url_for("booking_page", token=b.token))
+
+
+def booking_owner_text(b):
+    """Mensagem que o turista manda ao dono: é ela que avisa o dono que chegou um pedido."""
+    r = b.rancho
+    lines = [f"Olá{(' ' + r.owner_name.split()[0]) if r.owner_name else ''}! Fiz um pedido de reserva no site {SITE_NAME}:",
+             f"🏡 {r.name}", f"📅 {b.period} ({plural(len(b.nights), 'diária', 'diárias')})",
+             f"👥 {plural(b.guests, 'pessoa', 'pessoas')}"]
+    if b.value:
+        lines.append(f"💰 Valor pelo site: {brl(b.value)}")
+    lines += [f"Meu nome: {b.name}", "", f"Para confirmar ou recusar: {site_url()}{url_for('admin_bookings')}"]
+    return "\n".join(lines)
+
+
+def booking_guest_text(b):
+    """Mensagem pronta que o dono manda ao turista depois de responder o pedido."""
+    first = b.name.split()[0] if b.name else ""
+    link = f"{site_url()}{url_for('booking_page', token=b.token)}"
+    if b.status == "confirmada":
+        return (f"Oi{(' ' + first) if first else ''}! Sua reserva no {b.rancho.name} está confirmada: "
+                f"{b.period}, {plural(b.guests, 'pessoa', 'pessoas')}"
+                f"{(', ' + brl(b.value)) if b.value else ''}. Os detalhes ficam aqui: {link}")
+    return (f"Oi{(' ' + first) if first else ''}! Infelizmente não consigo receber vocês no {b.rancho.name} "
+            f"de {b.period}. Se quiser, veja outras datas na agenda: {site_url()}{url_for('rancho', slug=b.rancho.slug)}")
+
+
+@app.route("/reserva/<token>")
+def booking_page(token):
+    b = Booking.query.filter_by(token=token).first_or_404()
+    r = b.rancho
+    can_edit = is_admin() or (current_owner() and r.owner_id == current_owner().id)
+    wa = f"https://wa.me/{r.whatsapp_digits}?text={quote(booking_owner_text(b))}" if r.whatsapp_digits else ""
+    return render_template("booking.html", b=b, r=r, wa=wa, can_edit=can_edit, STATUS=BOOKING_STATUS)
 
 
 @app.route("/rancho/<slug>/agenda.json")
@@ -1959,6 +2154,56 @@ def admin_home():
                            sources=source_stats(since), billing=billing_rows(ranchos), today=today_br())
 
 
+def visible_bookings():
+    q = Booking.query.join(Rancho)
+    if not is_admin():
+        q = q.filter(Rancho.owner_id == current_owner().id)
+    return q
+
+
+@app.route("/admin/reservas")
+@panel_required
+def admin_bookings():
+    today = today_br()
+    pending = visible_bookings().filter(Booking.status == "pedido").order_by(Booking.start).all()
+    upcoming = (visible_bookings().filter(Booking.status == "confirmada", Booking.end >= today)
+                .order_by(Booking.start).all())
+    shown = {b.id for b in pending + upcoming}
+    past = [b for b in visible_bookings().order_by(Booking.created_at.desc()).limit(60) if b.id not in shown][:30]
+    # Pedido em datas que ficaram ocupadas depois (outra reserva ou marcado na agenda)
+    clash = {}
+    for b in pending:
+        taken = sorted(d for d in busy_set(b.rancho, b.start) if b.start <= d < b.end)
+        if taken:
+            clash[b.id] = ", ".join(f"{d:%d/%m}" for d in taken[:3])
+    return render_template("admin/bookings.html", pending=pending, upcoming=upcoming, past=past, clash=clash,
+                           STATUS=BOOKING_STATUS, guest_text=booking_guest_text, today=today)
+
+
+@app.route("/admin/reservas/<int:bid>", methods=["POST"])
+@panel_required
+def admin_booking_update(bid):
+    check_csrf()
+    b = db.session.get(Booking, bid) or abort(404)
+    editable_rancho(b.rancho_id)  # só o dono do rancho (ou o admin)
+    action = request.form.get("action")
+    if action == "confirmar" and b.status == "pedido":
+        b.status, b.total = "confirmada", max(0, to_int(request.form.get("total"), b.estimate))
+        flash(f"Reserva de {b.name} confirmada: as datas já aparecem ocupadas na agenda. "
+              "Avise pelo WhatsApp no botão verde.", "ok")
+    elif action == "recusar" and b.status == "pedido":
+        b.status = "recusada"
+        flash(f"Pedido de {b.name} recusado. Avise pelo WhatsApp no botão verde.", "ok")
+    elif action == "cancelar" and b.status == "confirmada":
+        b.status = "cancelada"
+        flash(f"Reserva de {b.name} cancelada: as datas voltaram a ficar livres.", "ok")
+    else:
+        abort(400)
+    b.decided_at = now_utc()
+    db.session.commit()
+    return redirect(url_for("admin_bookings") + f"#b{b.id}")
+
+
 @app.route("/admin/pescarias")
 @admin_required
 def admin_catches():
@@ -2060,6 +2305,7 @@ def fill_rancho(r, form):
     if is_admin():
         set_verified(r, bool(form.get("verified")))
         r.featured = bool(form.get("featured"))
+        r.booking_on = bool(form.get("booking_on"))
         r.paid_until = parse_day(form.get("paid_until"))
         ical = form.get("ical_url", "").strip()[:500]
         if ical != (r.ical_url or ""):

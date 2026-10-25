@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set dono = r.owner_name.split()[0] if r.owner_name else 'o dono' %}
+{% block title %}Pedido de reserva · {{ r.name }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}Pedido de reserva no {{ r.name }}, {{ b.period }}.{% endblock %}
+{% block meta %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="wrap booking-page">
+  <nav class="crumbs"><a href="{{ url_for('rancho', slug=r.slug) }}">{{ r.name }}</a> › Pedido de reserva</nav>
+
+  {% if b.status == 'pedido' %}
+    <p class="booking-status st-pedido">⏳ {{ STATUS[b.status] }}</p>
+    <h1>Pedido feito! Falta só avisar {{ dono }}</h1>
+    <p>Mande o pedido no WhatsApp: {{ dono }} vê as datas e o valor e, quando confirmar, esta página muda para "Confirmada".</p>
+    {% if wa %}<a class="btn btn-zap btn-block booking-wa" href="{{ wa }}" target="_blank" rel="noopener">Mandar o pedido para {{ dono }} no WhatsApp</a>{% endif %}
+  {% elif b.status == 'confirmada' %}
+    <p class="booking-status st-confirmada">✓ {{ STATUS[b.status] }}</p>
+    <h1>Reserva confirmada!</h1>
+    <p>{{ dono|capitalize }} confirmou a sua reserva. Combine o sinal e os detalhes da chegada com {{ dono }} pelo WhatsApp.</p>
+    {% if wa %}<a class="btn btn-zap btn-block booking-wa" href="https://wa.me/{{ r.whatsapp_digits }}" target="_blank" rel="noopener">Falar com {{ dono }} no WhatsApp</a>{% endif %}
+  {% else %}
+    <p class="booking-status st-off">{{ STATUS[b.status] }}</p>
+    <h1>{{ 'Essas datas não deram certo' if b.status == 'recusada' else 'Reserva cancelada' }}</h1>
+    <p>Que tal outras datas? A agenda do rancho mostra os dias livres.</p>
+    <a class="btn btn-dark" href="{{ url_for('rancho', slug=r.slug) }}#agenda">Ver a agenda do {{ r.name }}</a>
+  {% endif %}
+
+  <dl class="book-list booking-summary">
+    <div><dt>Rancho</dt><dd><a class="link" href="{{ url_for('rancho', slug=r.slug) }}">{{ r.name }}</a></dd></div>
+    <div><dt>Datas</dt><dd>{{ b.period }}</dd></div>
+    <div><dt>Diárias</dt><dd>{{ b.nights|length }}</dd></div>
+    <div><dt>Pessoas</dt><dd>{{ b.guests }}</dd></div>
+    <div><dt>{{ 'Valor combinado' if b.total else 'Valor pelo site' }}</dt><dd>{{ brl(b.value) if b.value else 'A combinar com ' ~ dono }}</dd></div>
+    <div><dt>Em nome de</dt><dd>{{ b.name }}</dd></div>
+  </dl>
+  {% if r.checkin or r.checkout %}
+  <p class="small muted">{% if r.checkin %}Entrada a partir das {{ r.checkin }}{% endif %}{% if r.checkin and r.checkout %} · {% endif %}{% if r.checkout %}Saída até as {{ r.checkout }}{% endif %}</p>
+  {% endif %}
+  <p class="small muted">Guarde este link para acompanhar o pedido.</p>
+  {% if can_edit %}<p class="small"><a class="link" href="{{ url_for('admin_bookings') }}#b{{ b.id }}">Responder este pedido no painel</a></p>{% endif %}
+</section>
+{% endblock %}

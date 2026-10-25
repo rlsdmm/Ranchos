@@ -4,6 +4,10 @@
 <h1>Olá{% if owner.name %}, {{ owner.name.split()[0] }}{% endif %}!</h1>
 <p class="muted">Aqui você atualiza os seus anúncios: fotos, descrição, preços e regras. As mudanças aparecem no site na hora.</p>
 
+{% set npb = pending_bookings() %}
+{% if npb %}
+<a class="pending-box bk-alert" href="{{ url_for('admin_bookings') }}"><strong>📅 {{ npb }} {{ 'pedido de reserva esperando' if npb == 1 else 'pedidos de reserva esperando' }} sua resposta</strong> · Ver pedidos →</a>
+{% endif %}
 <h2>Meus ranchos</h2>
 {% if ranchos %}
 <div class="table-wrap">
