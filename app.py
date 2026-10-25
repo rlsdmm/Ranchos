@@ -1012,6 +1012,23 @@ def range_days(start, end):
     return [start + timedelta(days=i) for i in range((end - start).days)]
 
 
+def parse_brl(v, default=0):
+    """Valor em reais digitado pelo dono, em reais inteiros: "1.700", "1700", "R$ 1.700,00" e
+    "1700,50" (arredonda). Vírgula é centavo; ponto é milhar, a não ser que tenha 2 dígitos depois."""
+    v = re.sub(r"[^\d.,]", "", str(v or ""))
+    if not re.search(r"\d", v):
+        return default
+    if "," in v:
+        whole, cents = v.replace(".", "").rsplit(",", 1)
+    elif re.search(r"\.\d{2}$", v):  # 1700.50
+        whole, cents = v.rsplit(".", 1)
+    else:
+        whole, cents = v, ""
+    whole = re.sub(r"\D", "", whole) or "0"
+    cents = (re.sub(r"\D", "", cents) + "00")[:2]
+    return int(whole) + (1 if int(cents) >= 50 else 0)
+
+
 def booking_quote(r, start, end):
     """Valor pelos preços do anúncio: (reais, explicação). 0 reais = a combinar com o dono.
     Noite de sexta e de sábado é o pacote de fim de semana (um por fim de semana); as outras
@@ -1695,6 +1712,10 @@ def booking_guest_text(b):
         return (f"Oi{(' ' + first) if first else ''}! Sua reserva no {b.rancho.name} está confirmada: "
                 f"{b.period}, {plural(b.guests, 'pessoa', 'pessoas')}"
                 f"{(', ' + brl(b.value)) if b.value else ''}. Os detalhes ficam aqui: {link}")
+    if b.status == "cancelada":
+        return (f"Oi{(' ' + first) if first else ''}! Infelizmente precisei cancelar a sua reserva no "
+                f"{b.rancho.name} de {b.period}. Me desculpe pelo transtorno. Se quiser, veja outras datas "
+                f"na agenda: {site_url()}{url_for('rancho', slug=b.rancho.slug)}")
     return (f"Oi{(' ' + first) if first else ''}! Infelizmente não consigo receber vocês no {b.rancho.name} "
             f"de {b.period}. Se quiser, veja outras datas na agenda: {site_url()}{url_for('rancho', slug=b.rancho.slug)}")
 
@@ -2188,7 +2209,7 @@ def admin_booking_update(bid):
     editable_rancho(b.rancho_id)  # só o dono do rancho (ou o admin)
     action = request.form.get("action")
     if action == "confirmar" and b.status == "pedido":
-        b.status, b.total = "confirmada", max(0, to_int(request.form.get("total"), b.estimate))
+        b.status, b.total = "confirmada", parse_brl(request.form.get("total"), b.estimate)
         flash(f"Reserva de {b.name} confirmada: as datas já aparecem ocupadas na agenda. "
               "Avise pelo WhatsApp no botão verde.", "ok")
     elif action == "recusar" and b.status == "pedido":
@@ -2196,7 +2217,8 @@ def admin_booking_update(bid):
         flash(f"Pedido de {b.name} recusado. Avise pelo WhatsApp no botão verde.", "ok")
     elif action == "cancelar" and b.status == "confirmada":
         b.status = "cancelada"
-        flash(f"Reserva de {b.name} cancelada: as datas voltaram a ficar livres.", "ok")
+        flash(f"Reserva de {b.name} cancelada: as datas voltaram a ficar livres. "
+              "Avise pelo WhatsApp no botão verde.", "ok")
     else:
         abort(400)
     b.decided_at = now_utc()

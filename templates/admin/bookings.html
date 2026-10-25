@@ -15,11 +15,11 @@
   <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="bk-actions">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <label class="small">Valor da reserva (R$)
-      <input name="total" inputmode="numeric" value="{{ b.estimate or '' }}" placeholder="a combinar"></label>
+      <input name="total" inputmode="decimal" value="{{ b.estimate or '' }}" placeholder="a combinar"></label>
     <button class="btn btn-dark btn-sm" name="action" value="confirmar">Confirmar reserva</button>
     <button class="btn btn-outline btn-sm" name="action" value="recusar" data-confirm="Recusar o pedido de {{ b.name }}?">Recusar</button>
   </form>
-  {% elif b.status in ('confirmada', 'recusada') %}
+  {% else %}
   <div class="bk-actions">
     <a class="btn btn-zap btn-sm" href="https://wa.me/{{ b.phone_digits }}?text={{ guest_text(b)|urlencode }}" target="_blank" rel="noopener">Avisar {{ b.name.split()[0] if b.name else 'o turista' }} no WhatsApp</a>
     {% if b.status == 'confirmada' and b.end >= today %}
