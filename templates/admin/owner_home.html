@@ -10,36 +10,34 @@
 {% endif %}
 <h2>Meus ranchos</h2>
 {% if ranchos %}
-<div class="table-wrap">
-<table class="table">
-  <thead><tr><th>Rancho</th><th>Situação</th><th class="num">Visualizações (30 dias)</th><th class="num">WhatsApp (30 dias)</th><th class="num">♥ Salvaram (30 dias)</th><th></th></tr></thead>
-  <tbody>
+{# Um cartão por rancho: a tabela de antes não cabia no celular e obrigava a arrastar para o lado #}
+<ul class="my-ranchos">
   {% for r in ranchos %}
-    <tr class="{% if not r.public %}off{% endif %}">
-      <td>
-        <a href="{{ url_for('admin_edit', rid=r.id) }}" class="strong">{{ r.name }}</a>
-        <div class="muted small">{{ r.photos|length }} fotos{% if r.verified %} · ✓ Verificado{% endif %} ·
-          {% if r.calendar_updated_at %}agenda atualizada em {{ (r.calendar_updated_at|local)[:10] }}{% else %}<a class="link" href="{{ url_for('admin_calendar', rid=r.id) }}">preencha a agenda</a>{% endif %}</div>
-      </td>
-      <td>
-        {% if r.pending %}<span class="badge">Aguardando aprovação</span>
-        {% elif not r.active %}<span class="badge">Pausado</span>
-        {% else %}<span class="badge badge-ok">No ar</span>{% endif %}
-      </td>
-      <td class="num">{{ c30.get((r.id, 'view'), 0) + c30.get((r.id, 'reopen'), 0) }}<div class="muted small">{{ c30.get((r.id, 'view'), 0) }} pessoas</div></td>
-      <td class="num">{{ c30.get((r.id, 'whatsapp'), 0) }}</td>
-      <td class="num">{{ c30.get((r.id, 'fav'), 0) }}</td>
-      <td><div class="actions">
-        <a href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a>
-        <a href="{{ url_for('admin_calendar', rid=r.id) }}">📅 Agenda</a>
-        <a href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>
-        <a href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver ↗</a>
-      </div></td>
-    </tr>
+  <li class="my-rancho{% if not r.public %} off{% endif %}">
+    <div class="my-rancho-head">
+      <a href="{{ url_for('admin_edit', rid=r.id) }}" class="strong">{{ r.name }}</a>
+      {% if r.pending %}<span class="badge">Aguardando aprovação</span>
+      {% elif not r.active %}<span class="badge">Pausado</span>
+      {% else %}<span class="badge badge-ok">No ar</span>{% endif %}
+    </div>
+    <p class="muted small">{{ r.photos|length }} fotos{% if r.verified %} · ✓ Verificado{% endif %} ·
+      {% if r.calendar_updated_at %}agenda atualizada em {{ (r.calendar_updated_at|local)[:10] }}{% else %}<a class="link" href="{{ url_for('admin_calendar', rid=r.id) }}">preencha a agenda</a>{% endif %}</p>
+    <p class="my-stats-label small muted">Últimos 30 dias</p>
+    <dl class="my-stats">
+      <div><dt>Visualizações</dt><dd>{{ c30.get((r.id, 'view'), 0) + c30.get((r.id, 'reopen'), 0) }}</dd><dd class="small muted">{{ c30.get((r.id, 'view'), 0) }} pessoas</dd></div>
+      <div><dt>WhatsApp</dt><dd>{{ c30.get((r.id, 'whatsapp'), 0) }}</dd></div>
+      {% if r.booking_on %}<div><dt>Pedidos</dt><dd>{{ c30.get((r.id, 'pedido'), 0) }}</dd></div>{% endif %}
+      <div><dt>♥ Salvaram</dt><dd>{{ c30.get((r.id, 'fav'), 0) }}</dd></div>
+    </dl>
+    <div class="my-actions">
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin_calendar', rid=r.id) }}">📅 Agenda</a>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a>
+    </div>
+  </li>
   {% endfor %}
-  </tbody>
-</table>
-</div>
+</ul>
 {% else %}
   <div class="empty">
     <p>Você ainda não tem ranchos na sua conta.</p>
