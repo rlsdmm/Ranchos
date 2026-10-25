@@ -131,6 +131,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .filter-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .fsel span { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.fsel span.nav-short { display: none; }
+@media (max-width: 760px) { .fsel span.nav-long { display: none; } .fsel span.nav-short { display: inline; } }
 .fsel select, .form input, .form select, .form textarea {
   width: 100%;
   background: var(--papel);
@@ -601,7 +603,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
       var(--hero-img) center / cover no-repeat,
       var(--rio);
   }
-  .filters { padding: 14px; }
+  .filters { padding: 14px 12px; }
   /* 16px: com menos que isso o iPhone dá zoom na página ao tocar no campo */
   .fsel select { padding: 9px 10px; font-size: 16px; }
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 0; padding: 0 14px 2px; scrollbar-width: none; }
@@ -961,3 +963,44 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stars-row input:checked ~ label, .stars-row label:hover, .stars-row label:hover ~ label { color: var(--sol-deep); }
 .stars-row input:focus-visible + label { outline: 3px solid var(--rio-2); outline-offset: 2px; }
 .review-form { gap: 16px; margin-top: 16px; }
+
+/* ---------- Celular: ranchos mais cedo na página inicial ---------- */
+.grid { grid-auto-flow: row dense; } /* o quadro do feriado (largura toda) não deixa buraco na grade */
+.grid-wide { grid-column: 1 / -1; list-style: none; }
+.grid-wide .holiday { margin-top: 0; }
+@media (max-width: 640px) {
+  .hero { padding-top: 22px; }
+  .hero-kicker { font-size: 13px; margin-bottom: 10px; }
+  .hero-title { font-size: clamp(34px, 10vw, 44px); }
+  .hero-sub { font-size: 16px; margin-top: 10px; }
+  /* Selos numa linha corrida em vez de um embaixo do outro */
+  .hero-trust { flex-direction: row; gap: 4px 14px; font-size: 13px; margin-top: 12px; padding-bottom: 46px; }
+  .hero-trust li::before { width: 15px; height: 15px; background-size: 10px; }
+  /* Os três filtros numa linha só */
+  .filter-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .filter-row .fsel:last-child { grid-column: auto; }
+  .fsel span { font-size: 12px; white-space: nowrap; }
+  .fsel span span { display: inline; margin: 0; }
+  /* Seta própria, menor que a do sistema: sobra espaço para "Qualquer" e "Destaques" caberem */
+  .fsel select {
+    -webkit-appearance: none; appearance: none; padding: 9px 16px 9px 7px; text-overflow: ellipsis; letter-spacing: -0.01em;
+    background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235b6e6a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 6px center / 9px 6px no-repeat;
+  }
+  .chips { margin-top: 10px; }
+  .results-head { margin-top: 20px; }
+}
+
+/* ---------- Celular: preço perto do topo na página do rancho ---------- */
+.price-strip { display: none; }
+@media (max-width: 900px) {
+  .price-strip {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 14px 0 6px; padding: 12px 14px; border-radius: var(--r);
+    background: var(--card); border: 1.5px solid var(--sol); color: var(--ink); text-decoration: none;
+  }
+  .price-strip-main { display: grid; gap: 1px; min-width: 0; }
+  .price-strip-main > span:first-child { white-space: nowrap; }
+  .price-strip-main strong { font-size: 22px; font-weight: 850; font-stretch: 95%; }
+  .price-strip-sub { font-size: 13px; color: var(--muted); }
+  .price-strip-go { flex: none; font-weight: 700; font-size: 14px; color: var(--rio-2); text-align: right; max-width: 45%; }
+}

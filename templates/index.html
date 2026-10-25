@@ -8,6 +8,23 @@
   <link rel="canonical" href="{{ site_url() }}/">
 {% endblock %}
 {% block og_image %}{% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
+{% macro holiday_box() %}
+  <section class="holiday" aria-labelledby="holiday-title">
+    <p class="holiday-kicker">Próximo feriado</p>
+    <h2 id="holiday-title">{{ holiday.name }}</h2>
+    <p class="holiday-when">{{ holiday.period }}</p>
+    {% set n = holiday.free|length %}
+    {% if n %}
+      <p><strong>{{ n }} {{ 'rancho está livre' if n == 1 else 'ranchos estão livres' }}</strong> na agenda:</p>
+      <ul class="holiday-list">
+        {% for r in holiday.free[:8] %}<li><a href="{{ url_for('rancho', slug=r.slug) }}#agenda">{{ r.name }}</a></li>{% endfor %}
+      </ul>
+    {% else %}
+      <p><strong>Os ranchos com agenda no site já estão reservados</strong> para esse feriado.</p>
+    {% endif %}
+    <p class="muted small">Rancho sem agenda no site também pode estar livre: pergunte ao dono pelo WhatsApp.</p>
+  </section>
+{% endmacro %}
 {% block content %}
 <section class="hero{{ ' has-photo' if hero }}"{% if hero %} style="--hero-img: url('{{ hero.cover.url() }}')"{% endif %}>
   <div class="wrap">
@@ -37,16 +54,16 @@
         </select>
       </label>
       <label class="fsel">
-        <span>Fim de semana até</span>
+        <span><span class="nav-long">Fim de semana até</span><span class="nav-short">Preço até</span></span>
         <select name="ate">
-          <option value="">Qualquer valor</option>
+          <option value="">Qualquer</option>
           {% for v in [1000, 2000, 3000, 4000, 6000, 8000] %}<option value="{{ v }}" {% if max_price == v %}selected{% endif %}>{{ brl(v) }}</option>{% endfor %}
         </select>
       </label>
       <label class="fsel">
         <span>Ordenar</span>
         <select name="ordem">
-          <option value="destaque" {% if order == 'destaque' %}selected{% endif %}>Destaques</option>
+          <option value="destaque" {% if order == 'destaque' %}selected{% endif %}>Destaque</option>
           <option value="preco" {% if order == 'preco' %}selected{% endif %}>Menor preço</option>
           <option value="capacidade" {% if order == 'capacidade' %}selected{% endif %}>Mais pessoas</option>
         </select>
@@ -61,23 +78,6 @@
     <noscript><button class="btn btn-dark" type="submit">Filtrar</button></noscript>
   </form>
 
-  {% if holiday %}
-  <section class="holiday" aria-labelledby="holiday-title">
-    <p class="holiday-kicker">Próximo feriado</p>
-    <h2 id="holiday-title">{{ holiday.name }}</h2>
-    <p class="holiday-when">{{ holiday.period }}</p>
-    {% set n = holiday.free|length %}
-    {% if n %}
-      <p><strong>{{ n }} {{ 'rancho está livre' if n == 1 else 'ranchos estão livres' }}</strong> na agenda:</p>
-      <ul class="holiday-list">
-        {% for r in holiday.free[:8] %}<li><a href="{{ url_for('rancho', slug=r.slug) }}#agenda">{{ r.name }}</a></li>{% endfor %}
-      </ul>
-    {% else %}
-      <p><strong>Os ranchos com agenda no site já estão reservados</strong> para esse feriado.</p>
-    {% endif %}
-    <p class="muted small">Rancho sem agenda no site também pode estar livre: pergunte ao dono pelo WhatsApp.</p>
-  </section>
-  {% endif %}
 
   <div id="results" aria-live="polite">
   <div class="results-head">
@@ -88,7 +88,10 @@
 
   {% if ranchos %}
   <ul class="grid">
-    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
+    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}
+    {# Feriado depois dos 3 primeiros: no celular, os ranchos aparecem logo de cara #}
+    {% if holiday and (loop.index == 3 or (loop.last and loop.length < 3)) %}<li class="grid-wide">{{ holiday_box() }}</li>{% endif %}
+    {% endfor %}
   </ul>
   {% else %}
     <div class="empty">

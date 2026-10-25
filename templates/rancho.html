@@ -66,6 +66,16 @@
         {% if r.min_nights and r.min_nights > 1 %}<li><strong>{{ r.min_nights }}</strong><span>diárias mín.</span></li>{% endif %}
       </ul>
       {% if r.beds %}<p class="muted">Camas: {{ r.beds }}</p>{% endif %}
+      {# Celular: o quadro de preço fica lá no fim (coluna única); este resumo leva até ele #}
+      <a class="price-strip" href="#reservar">
+        <span class="price-strip-main">
+          <span>{% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span>
+          {% elif r.price_night %}<strong>{{ brl(r.price_night) }}</strong> <span class="muted">/ diária</span>
+          {% else %}<strong>Valor a combinar</strong>{% endif %}</span>
+          {% if r.price_weekend and r.price_night %}<span class="price-strip-sub">Diária avulsa {{ brl(r.price_night) }}</span>{% endif %}
+        </span>
+        <span class="price-strip-go">{{ 'Reservar' if r.booking_on and r.whatsapp_digits else 'Ver valores' }} ↓</span>
+      </a>
 
       {% if r.description %}
       <section class="block">
@@ -280,7 +290,9 @@
 {% if r.whatsapp_digits %}
 <div class="bottombar">
   <div>
-    {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>{% else %}<strong>Consulte</strong>{% endif %}
+    {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>
+    {% elif r.price_night %}<strong>{{ brl(r.price_night) }}</strong> <span class="muted small">/ diária</span>
+    {% else %}<strong>A combinar</strong>{% endif %}
   </div>
   {% if r.booking_on %}
   <a class="btn btn-sun" href="#reservar">Pedir reserva</a>
