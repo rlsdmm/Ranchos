@@ -2211,19 +2211,23 @@ def admin_booking_update(bid):
     if action == "confirmar" and b.status == "pedido":
         b.status, b.total = "confirmada", parse_brl(request.form.get("total"), b.estimate)
         flash(f"Reserva de {b.name} confirmada: as datas já aparecem ocupadas na agenda. "
-              "Avise pelo WhatsApp no botão verde.", "ok")
+              "Se o WhatsApp não abriu sozinho, avise no botão verde.", "ok")
     elif action == "recusar" and b.status == "pedido":
         b.status = "recusada"
-        flash(f"Pedido de {b.name} recusado. Avise pelo WhatsApp no botão verde.", "ok")
+        flash(f"Pedido de {b.name} recusado. Se o WhatsApp não abriu sozinho, avise no botão verde.", "ok")
     elif action == "cancelar" and b.status == "confirmada":
         b.status = "cancelada"
         flash(f"Reserva de {b.name} cancelada: as datas voltaram a ficar livres. "
-              "Avise pelo WhatsApp no botão verde.", "ok")
+              "Se o WhatsApp não abriu sozinho, avise no botão verde.", "ok")
     else:
         abort(400)
     b.decided_at = now_utc()
     db.session.commit()
-    return redirect(url_for("admin_bookings") + f"#b{b.id}")
+    # O painel envia por fetch e já abre o WhatsApp com o aviso ao turista (um toque só para o dono)
+    nxt = url_for("admin_bookings", ok=b.id) + f"#b{b.id}"
+    if "application/json" in request.headers.get("Accept", ""):
+        return {"ok": True, "next": nxt, "wa": f"https://wa.me/{b.phone_digits}?text={quote(booking_guest_text(b))}"}
+    return redirect(nxt)
 
 
 @app.route("/admin/pescarias")

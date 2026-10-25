@@ -503,6 +503,32 @@
     quote();
   }
 
+  // Reservas no painel: confirmar, recusar ou cancelar já abre o WhatsApp com o aviso ao turista.
+  // A aba nova abre no toque (senão o navegador bloqueia) e recebe o link quando o site responde.
+  document.querySelectorAll('form.js-notify').forEach((f) => {
+    f.addEventListener('submit', async (e) => {
+      if (e.defaultPrevented) return; // o dono desistiu no "tem certeza?"
+      e.preventDefault();
+      const data = new FormData(f);
+      if (e.submitter?.name) data.append(e.submitter.name, e.submitter.value);
+      f.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      const tab = window.open('', '_blank');
+      try {
+        // getAttribute: os botões se chamam "action", e aí f.action devolveria o botão
+        const res = await (await fetch(f.getAttribute('action'), { method: 'POST', body: data, headers: { Accept: 'application/json' } })).json();
+        if (tab) tab.location.href = res.wa;
+        const next = new URL(res.next, location.href);
+        if (next.pathname + next.search === location.pathname + location.search) { // mesmo endereço: só o # mudaria
+          location.hash = next.hash;
+          location.reload();
+        } else location.href = next;
+      } catch {
+        tab?.close();
+        location.reload(); // falhou no meio: a página recarregada mostra como ficou
+      }
+    });
+  });
+
   // Agenda do painel: dono toca no dia para marcar/liberar (ou marca um período)
   const editCal = document.querySelector('[data-cal="edit"]');
   const agenda = document.getElementById('agenda');

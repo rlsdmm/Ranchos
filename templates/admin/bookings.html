@@ -12,7 +12,7 @@
   {% if clash.get(b.id) %}<p class="small danger">⚠ Já tem dia ocupado na agenda nessas datas ({{ clash[b.id] }}).</p>{% endif %}
 
   {% if b.status == 'pedido' %}
-  <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="bk-actions">
+  <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="bk-actions js-notify">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <label class="small">Valor da reserva (R$)
       <input name="total" inputmode="decimal" value="{{ b.estimate or '' }}" placeholder="a combinar"></label>
@@ -23,7 +23,7 @@
   <div class="bk-actions">
     <a class="btn btn-zap btn-sm" href="https://wa.me/{{ b.phone_digits }}?text={{ guest_text(b)|urlencode }}" target="_blank" rel="noopener">Avisar {{ b.name.split()[0] if b.name else 'o turista' }} no WhatsApp</a>
     {% if b.status == 'confirmada' and b.end >= today %}
-    <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" data-confirm="Cancelar a reserva de {{ b.name }}? As datas voltam a ficar livres na agenda.">
+    <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="js-notify" data-confirm="Cancelar a reserva de {{ b.name }}? As datas voltam a ficar livres na agenda.">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <button class="linkbtn small" name="action" value="cancelar">Cancelar reserva</button>
     </form>
@@ -35,7 +35,7 @@
 {% endmacro %}
 {% block content %}
 <h1>Pedidos de reserva</h1>
-<p class="muted">O turista escolhe as datas no site e manda o pedido no seu WhatsApp. Confirme ou recuse aqui: confirmada, as datas ficam ocupadas na agenda sozinhas.</p>
+<p class="muted">O turista escolhe as datas no site e manda o pedido no seu WhatsApp. Confirme ou recuse aqui: o WhatsApp abre com a mensagem pronta para o turista, e reserva confirmada ocupa as datas na agenda sozinha.</p>
 
 <h2>Esperando resposta{% if pending %} ({{ pending|length }}){% endif %}</h2>
 {% if pending %}<ul class="bk-list">{% for b in pending %}{{ row(b) }}{% endfor %}</ul>
