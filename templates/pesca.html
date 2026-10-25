@@ -7,8 +7,8 @@
   <meta property="og:title" content="Pesca em {{ CITY_NAME }}: peixes, piracema e mural de pescarias">
   <meta property="og:description" content="Tucunaré, corvina, traíra, piau e mais. Veja o que pode pescar na piracema e mande a foto da sua pescaria.">
   <meta property="og:type" content="article">
-  <meta property="og:image" content="{{ site_url() }}{{ url_for('static', filename='peixes/tucunare.webp') }}">
 {% endblock %}
+{% block og_image %}<meta property="og:image" content="{{ site_url() }}{{ url_for('static', filename='peixes/tucunare.webp') }}">{% endblock %}
 {% block content %}
 <article class="wrap fish-page">
   <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Pesca</nav>

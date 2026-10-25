@@ -8,8 +8,8 @@
   <meta property="og:title" content="{% if menu and not p.sells_drinks %}Cardápio de {{ p.name }}{% else %}{{ p.name }}{% endif %} | {{ SITE_NAME }}">
   <meta property="og:description" content="{{ p.summary or ('Serviços para a sua estadia em ' ~ CITY_NAME) }}">
   <meta property="og:type" content="website">
-  {% if p.cover %}<meta property="og:image" content="{{ p.cover.url(absolute=True) }}">{% endif %}
 {% endblock %}
+{% block og_image %}{% if p.cover %}<meta property="og:image" content="{{ p.cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block content %}
 <article class="wrap cat-page provider-page">
   <nav class="crumbs"><a href="{{ url_for('services', rancho=rancho.slug if rancho else None) }}">← Serviços</a></nav>

@@ -6,8 +6,8 @@
   <meta property="og:type" content="website">
   {# filtros mudam o endereço (?c=pesca...), mas para o Google é tudo a mesma página #}
   <link rel="canonical" href="{{ site_url() }}/">
-  {% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
 {% endblock %}
+{% block og_image %}{% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block content %}
 <section class="hero{{ ' has-photo' if hero }}"{% if hero %} style="--hero-img: url('{{ hero.cover.url() }}')"{% endif %}>
   <div class="wrap">

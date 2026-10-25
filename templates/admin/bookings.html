@@ -22,6 +22,9 @@
   {% else %}
   <div class="bk-actions">
     <a class="btn btn-zap btn-sm" href="https://wa.me/{{ b.phone_digits }}?text={{ guest_text(b)|urlencode }}" target="_blank" rel="noopener">Avisar {{ b.name.split()[0] if b.name else 'o turista' }} no WhatsApp</a>
+    {% if b.status == 'confirmada' and b.end <= today and not b.review %}
+    <a class="btn btn-outline btn-sm" href="https://wa.me/{{ b.phone_digits }}?text={{ review_ask(b)|urlencode }}" target="_blank" rel="noopener">⭐ Pedir avaliação</a>
+    {% endif %}
     {% if b.status == 'confirmada' and b.end >= today %}
     <form method="post" action="{{ url_for('admin_booking_update', bid=b.id) }}" class="js-notify" data-confirm="Cancelar a reserva de {{ b.name }}? As datas voltam a ficar livres na agenda.">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">

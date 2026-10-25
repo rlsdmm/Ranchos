@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% from "_stars.html" import stars with context %}
+{% block title %}Avaliações · {{ r.name }}{% endblock %}
+{% block content %}
+<div class="edit-head">
+  <h1>Avaliações do {{ r.name }}</h1>
+  <div class="actions"><a href="{{ url_for('admin_home') }}">← Painel</a></div>
+</div>
+{% if r.rating %}<p>{{ stars(r.rating[0]) }} <strong>{{ '%.1f'|format(r.rating[0])|replace('.', ',') }}</strong> <span class="muted">· {{ r.rating[1] }} {{ 'avaliação' if r.rating[1] == 1 else 'avaliações' }} no site</span></p>{% endif %}
+
+{% if invite %}
+<div class="pending-box">
+  <h2>Convite pronto para {{ invite.name or 'o hóspede' }}</h2>
+  <p class="small">Mande o link pelo WhatsApp. Cada link vale para uma avaliação.</p>
+  <p class="small"><a class="link" href="{{ link }}" target="_blank">{{ link }}</a></p>
+  <div class="row-btns">
+    <a class="btn btn-zap btn-sm" href="https://wa.me/?text={{ ask|urlencode }}" target="_blank" rel="noopener">Mandar no WhatsApp</a>
+    <button type="button" class="btn btn-outline btn-sm" data-copy-text="{{ link }}">Copiar link</button>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" class="form form-card">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <h2>Pedir avaliação</h2>
+  <p class="muted small">Para quem fechou com você pelo WhatsApp. Quem reservou pelo site recebe o pedido na página de reservas, depois da saída.</p>
+  <div class="cols-2">
+    <label>Nome do hóspede <input name="name" maxlength="60" autocomplete="off"></label>
+    <label>Mês da estadia <input type="month" name="stay" value="{{ this_month }}"></label>
+  </div>
+  <button class="btn btn-dark">Gerar link de avaliação</button>
+</form>
+
+<h2>Avaliações recebidas</h2>
+{% if reviews %}
+<ul class="bk-list">
+  {% for rv in reviews %}
+  <li class="bk">
+    <div class="bk-head"><strong>{{ rv.first_name }}</strong><span class="badge{{ ' badge-ok' if rv.status == 'aprovada' }}">{{ STATUS[rv.status] }}</span></div>
+    <p>{{ stars(rv.stars) }} {% if rv.stay_label %}<span class="small muted">· {{ rv.stay_label }}</span>{% endif %}</p>
+    <p>“{{ rv.text }}”</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="muted">Ainda nenhuma. Peça para os hóspedes que gostaram!</p>{% endif %}
+
+{% if waiting %}
+<p class="small muted">Convites ainda não respondidos: {{ waiting|map(attribute='first_name')|join(', ') }}.</p>
+{% endif %}
+{% endblock %}

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=28">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=29">
 </head>
 <body class="admin">
   <header class="topbar">
@@ -19,7 +19,7 @@
       <nav class="topnav">
         <a href="{{ url_for('index') }}" target="_blank">Ver site ↗</a>
         {% if not svc_only %}{% set npb = pending_bookings() %}<a href="{{ url_for('admin_bookings') }}">Reservas{% if npb %} ({{ npb }}){% endif %}</a>{% endif %}
-        {% if is_admin() %}<a href="{{ url_for('admin_owners') }}">Donos</a><a href="{{ url_for('admin_providers') }}">Serviços</a>{% set npc = pending_catches() %}<a href="{{ url_for('admin_catches') }}">Pescarias{% if npc %} ({{ npc }}){% endif %}</a>
+        {% if is_admin() %}<a href="{{ url_for('admin_owners') }}">Donos</a><a href="{{ url_for('admin_providers') }}">Serviços</a>{% set npr = pending_reviews() %}<a href="{{ url_for('admin_reviews') }}">Avaliações{% if npr %} ({{ npr }}){% endif %}</a>{% set npc = pending_catches() %}<a href="{{ url_for('admin_catches') }}">Pescarias{% if npc %} ({{ npc }}){% endif %}</a>
         {% elif not current_owner().must_change %}<a href="{{ url_for('owner_password') }}">Trocar senha</a>{% endif %}
         {% if is_admin() or not (current_owner().must_change or svc_only) %}<a class="topnav-cta" href="{{ url_for('admin_edit') }}">+ Novo rancho</a>{% endif %}
         <form method="post" action="{{ url_for('admin_logout') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="linkbtn">Sair</button></form>

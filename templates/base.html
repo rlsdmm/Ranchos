@@ -7,18 +7,24 @@
   <meta name="description" content="{% block description %}Encontre ranchos para alugar em {{ CITY_NAME }}: beira-rio, piscina, pesca e churrasqueira. Ranchos verificados e contato direto com o dono pelo WhatsApp.{% endblock %}">
   <meta name="theme-color" content="#0B4F4A">
   {% block meta %}{% endblock %}
+  <meta property="og:site_name" content="{{ SITE_NAME }}">
+  {# Prévia no WhatsApp/Facebook: a página troca pela foto do rancho; sem foto, vai o logo #}
+  {% block og_image %}<meta property="og:image" content="{{ site_url() }}{{ url_for('static', filename='og.png') }}">
+  <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">{% endblock %}
   {% for ld in lds or [] %}<script type="application/ld+json">{{ ld | tojson }}</script>
   {% endfor %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=33">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=35">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="topbar">
     <div class="wrap topbar-in">
-      <a class="brand" href="{{ url_for('index') }}">{{ SITE_NAME }}</a>
+      <a class="brand" href="{{ url_for('index') }}"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M13 36a19 19 0 0 1 38 0z" fill="#F5B83D"/><path d="M14 43c3-2.4 6-2.4 9 0s6 2.4 9 0 6-2.4 9 0 6 2.4 9 0M21 51c2.6-2 5.2-2 7.8 0s5.2 2 7.8 0 5.2-2 7.8 0" fill="none" stroke="#DCEBE7" stroke-width="4" stroke-linecap="round"/></svg><span>{{ SITE_NAME }}</span></a>
       {# No celular os links descem para uma segunda linha, com nomes curtos #}
       <nav class="topnav" aria-label="Menu principal">
         <a href="{{ url_for('index') }}#ranchos">Ranchos</a>

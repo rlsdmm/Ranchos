@@ -1,4 +1,5 @@
 {# Card de rancho usado na página inicial, nas páginas por tipo e na lista para o grupo. #}
+{% from "_stars.html" import stars with context %}
 {% macro card(r, eager=False) %}
 <li class="card">
   <a href="{{ url_for('rancho', slug=r.slug) }}" class="card-link">
@@ -17,6 +18,7 @@
     <div class="card-body">
       <h3>{{ r.name }}</h3>
       {% if r.region %}<p class="muted">{{ r.region }}</p>{% endif %}
+      {% if r.rating %}<p class="card-rating">{{ stars(r.rating[0]) }} <strong>{{ '%.1f'|format(r.rating[0])|replace('.', ',') }}</strong> <span class="muted">({{ r.rating[1] }})</span></p>{% endif %}
       {% if r.summary %}<p class="card-sum">{{ r.summary }}</p>{% endif %}
       <p class="specs">
         {% if r.capacity %}<span>👥 até {{ r.capacity }}</span>{% endif %}

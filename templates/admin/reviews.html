@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% from "_stars.html" import stars with context %}
+{% block title %}Avaliações{% endblock %}
+{% macro row(rv) %}
+<li class="bk{{ ' bk-pedido' if rv.status == 'pendente' }}">
+  <div class="bk-head">
+    <strong>{{ rv.first_name }} · <a class="link" href="{{ url_for('rancho', slug=rv.rancho.slug) }}#avaliacoes" target="_blank">{{ rv.rancho.name }}</a></strong>
+    <span class="badge{{ ' badge-ok' if rv.status == 'aprovada' }}">{{ STATUS[rv.status] }}</span>
+  </div>
+  <p>{{ stars(rv.stars) }} {% if rv.stay_label %}<span class="small muted">· ficou em {{ rv.stay_label }}</span>{% endif %}
+    <span class="small muted">· {{ 'reserva pelo site' if rv.booking_id else 'convite do dono' }} · enviada {{ rv.submitted_at|ago }}</span></p>
+  <p>“{{ rv.text }}”</p>
+  <form method="post" class="bk-actions">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="id" value="{{ rv.id }}">
+    {% if rv.status != 'aprovada' %}<button class="btn btn-dark btn-sm" name="action" value="aprovar">Publicar</button>{% endif %}
+    {% if rv.status != 'recusada' %}<button class="btn btn-outline btn-sm" name="action" value="recusar">{{ 'Não publicar' if rv.status == 'pendente' else 'Tirar do site' }}</button>{% endif %}
+  </form>
+</li>
+{% endmacro %}
+{% block content %}
+<h1>Avaliações</h1>
+<p class="muted">Só aparecem no site depois que você publicar. Recuse ofensa, propaganda, dado pessoal ou avaliação que pareça falsa (por exemplo, várias do mesmo convite do dono no mesmo dia).</p>
+
+<h2>Esperando você{% if pending %} ({{ pending|length }}){% endif %}</h2>
+{% if pending %}<ul class="bk-list">{% for rv in pending %}{{ row(rv) }}{% endfor %}</ul>
+{% else %}<p class="muted">Nenhuma avaliação esperando.</p>{% endif %}
+
+{% if recent %}
+<h2>Já respondidas</h2>
+<ul class="bk-list bk-past">{% for rv in recent %}{{ row(rv) }}{% endfor %}</ul>
+{% endif %}
+{% endblock %}

@@ -14,7 +14,11 @@
     {% if wa %}<a class="btn btn-zap btn-block booking-wa" href="{{ wa }}" target="_blank" rel="noopener">Mandar o pedido para {{ dono }} no WhatsApp</a>{% endif %}
   {% elif b.status == 'confirmada' %}
     <p class="booking-status st-confirmada">✓ {{ STATUS[b.status] }}</p>
-    <h1>Reserva confirmada!</h1>
+    <h1>{{ 'Como foi a estadia?' if reviewable else 'Reserva confirmada!' }}</h1>
+    {% if reviewable %}
+      {% if b.review %}<p>Obrigado pela avaliação! 🙏</p>
+      {% else %}<a class="btn btn-sun btn-block booking-wa" href="{{ url_for('review_booking', token=b.token) }}">⭐ Avaliar o {{ r.name }}</a>{% endif %}
+    {% endif %}
     <p>{{ dono|capitalize }} confirmou a sua reserva. Combine o sinal e os detalhes da chegada com {{ dono }} pelo WhatsApp.</p>
     {% if wa %}<a class="btn btn-zap btn-block booking-wa" href="https://wa.me/{{ r.whatsapp_digits }}" target="_blank" rel="noopener">Falar com {{ dono }} no WhatsApp</a>{% endif %}
   {% else %}

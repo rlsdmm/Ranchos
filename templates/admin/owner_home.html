@@ -33,6 +33,7 @@
       <a class="btn btn-outline btn-sm" href="{{ url_for('admin_edit', rid=r.id) }}">Editar</a>
       <a class="btn btn-outline btn-sm" href="{{ url_for('admin_calendar', rid=r.id) }}">📅 Agenda</a>
       <a class="btn btn-outline btn-sm" href="{{ url_for('admin_report', rid=r.id) }}">Relatório</a>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('admin_rancho_reviews', rid=r.id) }}">⭐ Avaliações{% if r.rating %} ({{ r.rating[1] }}){% endif %}</a>
       <a class="btn btn-outline btn-sm" href="{{ url_for('rancho', slug=r.slug) }}" target="_blank">Ver no site ↗</a>
     </div>
   </li>

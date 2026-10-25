@@ -12,6 +12,8 @@ Donos:    contas criadas pelo admin em /admin/donos. O dono entra no mesmo /admi
 Reservas: rancho com "aceita pedido de reserva" ligado (pelo admin) mostra um formulário com
           datas e pessoas. O pedido vira uma página /reserva/<token> para o turista e aparece em
           /admin/reservas para o dono confirmar ou recusar. Confirmada, ocupa as datas na agenda.
+Avaliações: só por link (da reserva pelo site, depois da saída, ou convite que o dono gera no
+          painel). Entram na fila do admin e só aparecem no site depois de aprovadas.
 
 Banco:    DATABASE_URL (Postgres em produção). Sem ela, usa SQLite local.
 Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunny
@@ -307,6 +309,11 @@ class Rancho(db.Model):
         return self.id in new_rancho_ids()
 
     @property
+    def rating(self):
+        """(média, quantidade) das avaliações aprovadas, ou None."""
+        return ratings_map().get(self.id)
+
+    @property
     def agenda_fresh(self):
         """Agenda mexida há pouco. Data velha no card passaria a impressão contrária."""
         return bool(self.calendar_updated_at
@@ -387,6 +394,38 @@ class Booking(db.Model):
     @property
     def value(self):
         return self.total or self.estimate
+
+
+class Review(db.Model):
+    """Avaliação de quem ficou no rancho. Só se avalia por link: o da reserva feita pelo site
+    (depois da saída) ou um convite que o dono gera no painel para quem fechou pelo WhatsApp.
+    Toda avaliação passa pelo admin antes de aparecer (o dono não aprova a própria)."""
+    id = db.Column(db.Integer, primary_key=True)
+    rancho_id = db.Column(db.Integer, db.ForeignKey("rancho.id", ondelete="CASCADE"), nullable=False, index=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey("booking.id", ondelete="SET NULL"), unique=True)
+    token = db.Column(db.String(32), unique=True, index=True)  # convite; vazio = veio da reserva
+    name = db.Column(db.String(60), default="")
+    stars = db.Column(db.Integer, default=0)
+    text = db.Column(db.String(1000), default="")
+    stay = db.Column(db.String(7), default="")  # mês da estadia, "2026-11"
+    status = db.Column(db.String(20), default="convite", index=True)  # REVIEW_STATUS
+    created_at = db.Column(db.DateTime, default=now_utc)
+    submitted_at = db.Column(db.DateTime)
+
+    rancho = db.relationship("Rancho", backref=db.backref("reviews", lazy="dynamic", passive_deletes=True))
+    booking = db.relationship("Booking", backref=db.backref("review", uselist=False))
+
+    @property
+    def first_name(self):
+        return (self.name or "Hóspede").split()[0].capitalize()
+
+    @property
+    def stay_label(self):
+        try:
+            y, m = (int(x) for x in self.stay.split("-"))
+            return f"{MONTHS_PT[m - 1]} de {y}"
+        except (ValueError, AttributeError, IndexError):
+            return ""
 
 
 class LoginThrottle(db.Model):
@@ -757,6 +796,15 @@ def public_ranchos():
     return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
 
 
+def ratings_map():
+    """{rancho_id: (média, quantidade)} das avaliações aprovadas. Uma consulta por requisição."""
+    if "ratings" not in g:
+        rows = (db.session.query(Review.rancho_id, func.avg(Review.stars), func.count(Review.id))
+                .filter(Review.status == "aprovada").group_by(Review.rancho_id).all())
+        g.ratings = {rid: (round(float(avg), 1), n) for rid, avg, n in rows}
+    return g.ratings
+
+
 def owner_slug(o, wanted=""):
     """Endereço da página do dono (/de/<slug>). Conta antiga ganha um na primeira vez que o link aparece."""
     if wanted or not o.slug:
@@ -1001,6 +1049,27 @@ def busy_set(r, start=None):
 BOOKING_STATUS = {"pedido": "Aguardando o dono", "confirmada": "Confirmada", "recusada": "Recusada",
                   "cancelada": "Cancelada"}
 BOOKING_MAX_NIGHTS = 30
+# Freios contra robô enchendo o painel dos donos de pedido falso (como na pescaria)
+BOOKING_LIMIT_DAY = 5           # pedidos por pessoa (sessão) por dia
+BOOKING_MAX_PENDING_RANCHO = 20  # pedidos esperando resposta num mesmo rancho
+BOOKING_MAX_PENDING_PHONE = 3    # pedidos esperando com o mesmo WhatsApp
+LEAD_LIMIT_DAY = 3               # pedidos de "Anuncie" por pessoa por dia
+LEAD_MAX_PENDING = 100           # pedidos de "Anuncie" ainda não atendidos
+
+
+def daily_quota(key, limit):
+    """Conta envios por sessão no dia. True = ainda pode; a contagem sobe só com bump=True."""
+    today = today_br().isoformat()
+    q = session.get(key) or {}
+    if q.get("d") != today:
+        q = {"d": today, "n": 0}
+    session[key] = q
+    return q["n"] < limit
+
+
+def bump_quota(key):
+    q = session.get(key) or {"d": today_br().isoformat(), "n": 0}
+    session[key] = {"d": q["d"], "n": q["n"] + 1}
 
 
 def short_day(d):
@@ -1227,7 +1296,8 @@ def inject_globals():
                 AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, DRINK_NOTICE=DRINK_NOTICE, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year,
                 pending_catches=lambda: FishCatch.query.filter_by(approved=False).count(),
-                pending_bookings=lambda: visible_bookings().filter(Booking.status == "pedido").count())
+                pending_bookings=lambda: visible_bookings().filter(Booking.status == "pedido").count(),
+                pending_reviews=lambda: Review.query.filter_by(status="pendente").count())
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc
@@ -1602,6 +1672,14 @@ def rancho(slug):
         ld["checkinTime"] = r.checkin
     if r.checkout:
         ld["checkoutTime"] = r.checkout
+    reviews = r.reviews.filter_by(status="aprovada").order_by(Review.submitted_at.desc()).limit(12).all()
+    if r.rating:
+        ld["aggregateRating"] = {"@type": "AggregateRating", "ratingValue": r.rating[0],
+                                 "reviewCount": r.rating[1], "bestRating": 5, "worstRating": 1}
+        ld["review"] = [{"@type": "Review", "author": {"@type": "Person", "name": rv.first_name},
+                         "reviewRating": {"@type": "Rating", "ratingValue": rv.stars, "bestRating": 5},
+                         "reviewBody": rv.text, "datePublished": rv.submitted_at.date().isoformat()}
+                        for rv in reviews[:5]]
     faq = rancho_faq(r)
     lds = [breadcrumb_ld(("Ranchos", "/"), (r.name, f"/rancho/{r.slug}")), faq_ld(faq)]
     months = calendar_months(busy_set(r)) if r.calendar_updated_at else None
@@ -1620,7 +1698,7 @@ def rancho(slug):
         tour.append(("outras", "Outras fotos" if tour else "", by_area[""]))
     areas = [(k, label, len(ps)) for k, label, ps in tour if k != "outras"]  # botões na mesma ordem
     return render_template("rancho.html", r=r, others=others, ld=ld, months=months, faq=faq, lds=lds,
-                           today_iso=today_br().isoformat(),
+                           today_iso=today_br().isoformat(), reviews=reviews,
                            areas=areas if len(areas) > 1 else [], tour=tour,
                            providers=public_providers()[:3],
                            catches=FishCatch.query.filter_by(rancho_id=r.id, approved=True)
@@ -1677,6 +1755,14 @@ def rancho_book(slug):
     err = booking_errors(r, start, end, guests)
     if not err and (not name or len(re.sub(r"\D", "", phone)) < 10):
         err = "Preencha seu nome e um WhatsApp com DDD."
+    if not err:
+        digits = re.sub(r"\D", "", phone)[-11:]
+        pending = Booking.query.filter_by(status="pedido")
+        same_phone = sum(1 for b in pending.filter(Booking.phone.like(f"%{digits[-4:]}"))
+                         if re.sub(r"\D", "", b.phone).endswith(digits))
+        if (not daily_quota("bookings", BOOKING_LIMIT_DAY) or same_phone >= BOOKING_MAX_PENDING_PHONE
+                or pending.filter_by(rancho_id=r.id).count() >= BOOKING_MAX_PENDING_RANCHO):
+            err = "Recebemos muitos pedidos agora. Fale com o dono pelo WhatsApp ou tente de novo amanhã."
     if err:
         flash(err, "error")
         session["booking_form"] = {"name": name, "phone": phone}
@@ -1689,6 +1775,7 @@ def rancho_book(slug):
     db.session.add(b)
     log_event(r.id, "pedido")
     db.session.commit()
+    bump_quota("bookings")
     return redirect(url_for("booking_page", token=b.token))
 
 
@@ -1726,7 +1813,59 @@ def booking_page(token):
     r = b.rancho
     can_edit = is_admin() or (current_owner() and r.owner_id == current_owner().id)
     wa = f"https://wa.me/{r.whatsapp_digits}?text={quote(booking_owner_text(b))}" if r.whatsapp_digits else ""
-    return render_template("booking.html", b=b, r=r, wa=wa, can_edit=can_edit, STATUS=BOOKING_STATUS)
+    return render_template("booking.html", b=b, r=r, wa=wa, can_edit=can_edit, STATUS=BOOKING_STATUS,
+                           reviewable=booking_reviewable(b))
+
+
+REVIEW_STATUS = {"convite": "Convite enviado", "pendente": "Esperando aprovação", "aprovada": "No site",
+                 "recusada": "Não publicada"}
+
+
+def booking_reviewable(b):
+    return b.status == "confirmada" and b.end <= today_br()
+
+
+def review_form(rancho, review, booking=None):
+    """Formulário de avaliação. review já existe (convite) ou é criada no envio (reserva)."""
+    done = review is not None and review.status != "convite"
+    if request.method == "POST" and not done:
+        check_csrf()
+        stars = to_int(request.form.get("stars"))
+        text = request.form.get("text", "").strip()[:1000]
+        name = request.form.get("name", "").strip()[:60]
+        if not 1 <= stars <= 5 or len(text) < 10 or not name:
+            flash("Escolha as estrelas, escreva pelo menos uma frase e diga seu nome.", "error")
+        else:
+            if review is None:
+                review = Review(rancho_id=rancho.id, booking_id=booking.id, stay=f"{booking.start:%Y-%m}")
+                db.session.add(review)
+            review.stars, review.text, review.name = stars, text, name
+            review.status, review.submitted_at = "pendente", now_utc()
+            db.session.commit()
+            done = True
+    name = review.name if review and review.name else (booking.name if booking else "")
+    return render_template("review.html", r=rancho, review=review, done=done, name=name,
+                           form=request.form if request.method == "POST" else {})
+
+
+@app.route("/avaliar/<token>", methods=["GET", "POST"])
+def review_invite(token):
+    rv = Review.query.filter_by(token=token).first_or_404()
+    return review_form(rv.rancho, rv)
+
+
+@app.route("/reserva/<token>/avaliar", methods=["GET", "POST"])
+def review_booking(token):
+    b = Booking.query.filter_by(token=token).first_or_404()
+    if not booking_reviewable(b):
+        return redirect(url_for("booking_page", token=b.token))
+    return review_form(b.rancho, b.review, booking=b)
+
+
+def review_ask_text(name, rancho, link):
+    first = name.split()[0] if name else ""
+    return (f"Oi{(' ' + first) if first else ''}! Obrigado por ficar no {rancho.name}. Conta pra gente como foi? "
+            f"Sua avaliação ajuda outras famílias a escolher, leva 1 minuto: {link}")
 
 
 @app.route("/rancho/<slug>/agenda.json")
@@ -1946,11 +2085,15 @@ def anuncie():
         if not name or len(re.sub(r"\D", "", phone)) < 10:
             flash("Preencha seu nome e um WhatsApp com DDD.", "error")
             return render_template("anuncie.html", form=request.form), 400
+        if not daily_quota("leads", LEAD_LIMIT_DAY) or Lead.query.filter_by(handled=False).count() >= LEAD_MAX_PENDING:
+            flash("Recebemos muitos pedidos agora. Chame a gente no WhatsApp ou tente de novo amanhã.", "error")
+            return render_template("anuncie.html", form=request.form), 429
         db.session.add(Lead(name=name, phone=phone,
                             rancho_name=request.form.get("rancho_name", "").strip()[:160],
                             region=request.form.get("region", "").strip()[:160],
                             message=request.form.get("message", "").strip()[:2000]))
         db.session.commit()
+        bump_quota("leads")
         sent = True
     return render_template("anuncie.html", sent=sent, form={})
 
@@ -2198,13 +2341,14 @@ def admin_bookings():
         if taken:
             clash[b.id] = ", ".join(f"{d:%d/%m}" for d in taken[:3])
     return render_template("admin/bookings.html", pending=pending, upcoming=upcoming, past=past, clash=clash,
-                           STATUS=BOOKING_STATUS, guest_text=booking_guest_text, today=today)
+                           STATUS=BOOKING_STATUS, guest_text=booking_guest_text, today=today,
+                           review_ask=lambda b: review_ask_text(
+                               b.name, b.rancho, f"{site_url()}{url_for('review_booking', token=b.token)}"))
 
 
 @app.route("/admin/reservas/<int:bid>", methods=["POST"])
 @panel_required
 def admin_booking_update(bid):
-    check_csrf()
     b = db.session.get(Booking, bid) or abort(404)
     editable_rancho(b.rancho_id)  # só o dono do rancho (ou o admin)
     action = request.form.get("action")
@@ -2228,6 +2372,44 @@ def admin_booking_update(bid):
     if "application/json" in request.headers.get("Accept", ""):
         return {"ok": True, "next": nxt, "wa": f"https://wa.me/{b.phone_digits}?text={quote(booking_guest_text(b))}"}
     return redirect(nxt)
+
+
+@app.route("/admin/rancho/<int:rid>/avaliacoes", methods=["GET", "POST"])
+@panel_required
+def admin_rancho_reviews(rid):
+    """Avaliações do rancho e convite para quem fechou fora do site (pelo WhatsApp)."""
+    r = editable_rancho(rid)
+    invite = None
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()[:60]
+        stay = request.form.get("stay", "")[:7]
+        invite = Review(rancho_id=r.id, token=secrets.token_urlsafe(12), name=name,
+                        stay=stay if re.fullmatch(r"\d{4}-\d{2}", stay) else "")
+        db.session.add(invite)
+        db.session.commit()
+    reviews = r.reviews.filter(Review.status != "convite").order_by(Review.submitted_at.desc()).all()
+    waiting = r.reviews.filter_by(status="convite").order_by(Review.created_at.desc()).limit(20).all()
+    link = f"{site_url()}{url_for('review_invite', token=invite.token)}" if invite else ""
+    return render_template("admin/rancho_reviews.html", r=r, reviews=reviews, waiting=waiting, invite=invite,
+                           link=link, ask=review_ask_text(invite.name, r, link) if invite else "",
+                           STATUS=REVIEW_STATUS, this_month=f"{today_br():%Y-%m}")
+
+
+@app.route("/admin/avaliacoes", methods=["GET", "POST"])
+@admin_required
+def admin_reviews():
+    if request.method == "POST":
+        rv = db.session.get(Review, to_int(request.form.get("id"))) or abort(404)
+        action = request.form.get("action")
+        if action in ("aprovar", "recusar") and rv.status in ("pendente", "aprovada", "recusada"):
+            rv.status = "aprovada" if action == "aprovar" else "recusada"
+            db.session.commit()
+            flash(f"Avaliação de {rv.first_name} {'publicada' if action == 'aprovar' else 'tirada do site'}.", "ok")
+        return redirect(url_for("admin_reviews"))
+    pending = Review.query.filter_by(status="pendente").order_by(Review.submitted_at).all()
+    recent = (Review.query.filter(Review.status.in_(("aprovada", "recusada")))
+              .order_by(Review.submitted_at.desc()).limit(40).all())
+    return render_template("admin/reviews.html", pending=pending, recent=recent, STATUS=REVIEW_STATUS)
 
 
 @app.route("/admin/pescarias")

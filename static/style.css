@@ -932,3 +932,32 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .my-stats dd.small { font-size: 12px; font-weight: 400; }
 .my-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .my-actions .btn { text-align: center; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+/* ---------- Logo no topo ---------- */
+.brand { display: inline-flex; align-items: center; gap: 10px; }
+.brand-mark { width: 34px; height: 34px; flex: none; }
+@media (max-width: 640px) { .brand { gap: 8px; } .brand-mark { width: 30px; height: 30px; } }
+
+/* ---------- Avaliações ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.stars { color: #c9d6d2; letter-spacing: 1px; white-space: nowrap; }
+.stars .on { color: var(--sol-deep); }
+.stars-lg { font-size: 22px; }
+.rating-top { margin: 4px 0 0; font-size: 15px; }
+.rating-top a { color: var(--ink); text-decoration: none; font-weight: 650; }
+.card-rating { margin: 2px 0 6px; font-size: 14px; }
+.rating-sum { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 17px; }
+.reviews { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 12px; }
+.review { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.review p { margin: 0; }
+.review p + p { margin-top: 6px; }
+.review-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+/* Escolha das estrelas: os rádios vêm da 5 para a 1 e a linha é invertida, então a marcada pinta as de antes */
+.stars-input { border: 0; padding: 0; margin: 0; }
+.stars-input legend { font-weight: 650; font-size: 15px; margin-bottom: 6px; padding: 0; }
+.stars-row { display: inline-flex; flex-direction: row-reverse; gap: 4px; }
+.stars-row input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.stars-row label { font-size: 40px; line-height: 1; width: 48px; height: 48px; display: grid; place-items: center; color: #c9d6d2; cursor: pointer; border-radius: 10px; }
+.stars-row input:checked ~ label, .stars-row label:hover, .stars-row label:hover ~ label { color: var(--sol-deep); }
+.stars-row input:focus-visible + label { outline: 3px solid var(--rio-2); outline-offset: 2px; }
+.review-form { gap: 16px; margin-top: 16px; }

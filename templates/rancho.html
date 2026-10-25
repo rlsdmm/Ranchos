@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_calendar.html" import calendar %}
 {% from "_provider_card.html" import provider_card with context %}
+{% from "_stars.html" import stars with context %}
 {% block title %}{{ r.name }}{% if r.region %}, {{ r.region }}{% endif %} | Rancho para alugar em {{ CITY_NAME }}{% endblock %}
 {% block description %}{{ r.summary or r.name }}{% if r.capacity %} Até {{ r.capacity }} pessoas.{% endif %}{% if r.price_weekend %} Fim de semana por {{ brl(r.price_weekend) }}.{% endif %} Fale direto com o dono pelo WhatsApp.{% endblock %}
 {% block body_class %}has-bottombar{% endblock %}
@@ -8,12 +9,12 @@
   <meta property="og:title" content="{{ r.name }} | Rancho em {{ CITY_NAME }}">
   <meta property="og:description" content="{{ r.summary or ('Rancho para até ' ~ r.capacity ~ ' pessoas') }}">
   <meta property="og:type" content="website">
-  {% if r.cover %}<meta property="og:image" content="{{ r.cover.url(absolute=True) }}">{% endif %}
   <link rel="canonical" href="{{ site_url() }}{{ url_for('rancho', slug=r.slug) }}">
   <script type="application/ld+json">
   {{ ld | tojson }}
   </script>
 {% endblock %}
+{% block og_image %}{% if r.cover %}<meta property="og:image" content="{{ r.cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block content %}
 <article class="wrap rancho">
   <nav class="crumbs"><a href="{{ url_for('index') }}#ranchos">← Todos os ranchos</a></nav>
@@ -22,6 +23,7 @@
     <div>
       <h1>{{ r.name }}</h1>
       <p class="muted">{% if r.region %}{{ r.region }}, {% endif %}{{ CITY_NAME }}{% if r.map_query %} · <a class="map-jump" href="#localizacao">Ver no mapa</a>{% endif %}</p>
+      {% if r.rating %}<p class="rating-top"><a href="#avaliacoes">{{ stars(r.rating[0]) }} {{ '%.1f'|format(r.rating[0])|replace('.', ',') }} · {{ r.rating[1] }} {{ 'avaliação' if r.rating[1] == 1 else 'avaliações' }}</a></p>{% endif %}
       {% if r.agenda_fresh and months %}<p class="fresh"><a href="#agenda">Agenda atualizada {{ r.calendar_updated_at|ago }}</a></p>{% endif %}
     </div>
     <div class="badges-inline">
@@ -144,6 +146,24 @@
           {% endfor %}
         </ul>
         <p><a class="link" href="{{ url_for('fishing') }}#mural">Ver o mural de pescarias e mandar a sua foto</a></p>
+      </section>
+      {% endif %}
+
+      {% if reviews %}
+      <section class="block" id="avaliacoes">
+        <h2>Avaliações</h2>
+        <p class="rating-sum">{{ stars(r.rating[0], "stars-lg") }} <strong>{{ '%.1f'|format(r.rating[0])|replace('.', ',') }}</strong>
+          <span class="muted">{{ r.rating[1] }} {{ 'avaliação' if r.rating[1] == 1 else 'avaliações' }} de quem ficou aqui</span></p>
+        <ul class="reviews">
+          {% for rv in reviews %}
+          <li class="review">
+            <p class="review-head"><strong>{{ rv.first_name }}</strong> {{ stars(rv.stars) }}</p>
+            <p class="small muted">{% if rv.stay_label %}Ficou em {{ rv.stay_label }}{% endif %}{% if rv.booking_id %}{{ ' · ' if rv.stay_label }}Reservou pelo site{% endif %}</p>
+            <p>{{ rv.text }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="small muted">Só publicamos avaliação de quem recebeu o link de quem ficou no rancho, e a nossa equipe confere antes.</p>
       </section>
       {% endif %}
 

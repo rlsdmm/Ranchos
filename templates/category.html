@@ -7,8 +7,8 @@
   <meta property="og:title" content="{{ h1 }}">
   <meta property="og:description" content="{{ intro }}">
   <meta property="og:type" content="website">
-  {% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
 {% endblock %}
+{% block og_image %}{% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block content %}
 <section class="wrap cat-page">
   <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › {{ cat.label }}</nav>
