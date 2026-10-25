@@ -55,10 +55,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topnav form { margin: 0; }
 .topnav-cta { background: var(--sol); color: var(--ink); padding: 8px 14px; border-radius: 999px; font-weight: 700; opacity: 1 !important; text-decoration: none; }
 .topnav-cta:hover { text-decoration: none !important; background: #ffc653; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.topnav-login { color: #fff; padding: 7px 13px; border: 1.5px solid rgba(255,255,255,.55); border-radius: 999px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.topnav-login:hover { border-color: #fff; background: rgba(255,255,255,.1); }
+.topnav-login:focus-visible, .topnav-cta:focus-visible { outline: 3px solid var(--sol); outline-offset: 2px; }
 @media (max-width: 760px) {
   .topbar-in { flex-wrap: wrap; gap: 0 12px; padding-top: 10px; }
   .topbar-in > .brand { flex: 1; min-width: 0; line-height: 1.15; }
-  .topbar-in > .topnav-cta { flex: none; padding: 7px 14px; font-size: 14px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions > .topnav-cta { flex: none; padding: 7px 14px; font-size: 14px; }
+  .topnav-login { padding: 6px 12px; font-size: 14px; }
   .topnav { order: 3; width: 100%; margin: 0; gap: 4px; font-size: 15px; }
   .topnav a { padding: 10px 12px 12px; opacity: .85; }
   .topnav a:first-child { padding-left: 0; }
@@ -869,3 +875,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .eco-foot a { color: var(--sol); font-weight: 700; }
 .fish-sec.eco { background: #e9f4ee; border-radius: var(--r-lg); padding: 20px 22px 8px; }
 @media (max-width: 600px) { .fish-sec.eco { padding: 16px 16px 4px; margin-inline: -4px; } }
+.owner-page .grid { margin-top: 20px; }
+.owner-page-more { margin: 28px 0 8px; }
+.owner-link { margin: 24px 0; }
+.owner-link h2 { margin-top: 0; }

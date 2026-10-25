@@ -42,6 +42,14 @@
     <a class="btn btn-dark" href="{{ url_for('admin_edit') }}">Cadastrar meu rancho</a>
   </div>
 {% endif %}
+{% if ranchos|selectattr('public')|list %}
+<div class="form-card owner-link">
+  <h2>Sua página no site</h2>
+  <p class="muted small">Só com os seus ranchos. Ponha na bio do Instagram ou mande para os clientes: rancho novo entra sozinho, o link não muda.</p>
+  <p><a class="link strong" href="{{ url_for('owner_page', slug=owner.slug) }}" target="_blank">{{ site_url() }}/de/{{ owner.slug }}</a></p>
+  <button type="button" class="btn btn-dark btn-sm" data-copy-text="{{ site_url() }}/de/{{ owner.slug }}">Copiar link</button>
+</div>
+{% endif %}
 {% if owner.providers %}
 <h2>Meus serviços</h2>
 <ul class="list-plain">

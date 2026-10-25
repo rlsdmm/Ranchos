@@ -38,6 +38,7 @@
         <label>Quer contar algo? <span class="muted">(opcional)</span> <textarea name="message" rows="3" maxlength="2000">{{ form.get('message', '') }}</textarea></label>
         <button class="btn btn-sun btn-block" type="submit">Enviar pedido</button>
       </form>
+      <p class="muted small">Já anuncia com a gente? <a href="{{ url_for('admin_login') }}">Entre na área do dono</a> para editar seu rancho e a agenda.</p>
     {% endif %}
   </div>
 </section>

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=30">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=32">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -26,7 +26,14 @@
         <a href="{{ url_for('services') }}" {% if request.endpoint in ('services', 'provider_page') %}aria-current="page"{% endif %}><span class="nav-long">Bebidas e serviços</span><span class="nav-short">Serviços</span></a>
         <a href="{{ url_for('safety_guide') }}" {% if request.endpoint == 'safety_guide' %}aria-current="page"{% endif %}><span class="nav-long">Como alugar com segurança</span><span class="nav-short">Segurança</span></a>
       </nav>
-      <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie<span class="nav-long"> seu rancho</span></a>
+      <div class="topbar-actions">
+        {% if is_admin() or current_owner() %}
+          <a class="topnav-login" href="{{ url_for('admin_home') }}">Meu painel</a>
+        {% else %}
+          <a class="topnav-login" href="{{ url_for('admin_login') }}"><span class="nav-long">Área do dono</span><span class="nav-short">Entrar</span></a>
+        {% endif %}
+        <a class="topnav-cta" href="{{ url_for('anuncie') }}">Anuncie<span class="nav-long"> seu rancho</span></a>
+      </div>
     </div>
   </header>
 
@@ -49,6 +56,7 @@
       </div>
       <div class="footer-links">
         <a href="{{ url_for('anuncie') }}">Anuncie seu rancho</a>
+        <a href="{{ url_for('admin_login') }}">Já anuncia? Entre na área do dono</a>
         <a href="{{ url_for('fishing') }}">Pesca: peixes, piracema e mural de pescarias</a>
         <a href="{{ url_for('services') }}">Bebidas e gelo, cozinheira e faxina</a>
         <a href="{{ url_for('safety_guide') }}">Como alugar sem cair em golpe</a>

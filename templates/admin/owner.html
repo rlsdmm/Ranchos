@@ -27,6 +27,13 @@
     <label>Nome do dono <input name="name" maxlength="120" value="{{ o.name }}"></label>
     <label>Login <input name="login" required maxlength="120" autocapitalize="none" spellcheck="false" value="{{ o.login }}"></label>
   </div>
+  <label>Endereço da página dos ranchos dele <span class="muted">({{ site_url() }}/de/…)</span>
+    <input name="slug" maxlength="100" autocapitalize="none" spellcheck="false" value="{{ o.slug }}"></label>
+  {% if o.ranchos|selectattr('public')|list %}
+  <p class="small">Página só com os ranchos dele, pra pôr na bio do Instagram:
+    <a class="link" href="{{ url_for('owner_page', slug=o.slug) }}" target="_blank">{{ site_url() }}/de/{{ o.slug }}</a>
+    <button type="button" class="btn btn-outline btn-sm" data-copy-text="{{ site_url() }}/de/{{ o.slug }}">Copiar link</button></p>
+  {% endif %}
   <label class="check"><input type="checkbox" name="active" {% if o.active %}checked{% endif %}> Conta ativa <span class="muted">(desmarque para bloquear o acesso sem apagar)</span></label>
   {% if ranchos %}
   <p class="strong small">Ranchos que ele pode editar</p>

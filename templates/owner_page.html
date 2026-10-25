@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_card.html" import card with context %}
+{% set n = ranchos|length %}
+{% set who = o.name or ranchos[0].owner_name %}
+{% block title %}{% if who %}{{ who }}: {% endif %}{{ 'rancho' if n == 1 else 'ranchos' }} para alugar em {{ CITY_NAME }} | {{ SITE_NAME }}{% endblock %}
+{% block description %}{{ ranchos|map(attribute='name')|join(', ') }}: {{ 'rancho' if n == 1 else 'ranchos' }} para alugar em {{ CITY_NAME }}. Fotos reais, preços e contato direto pelo WhatsApp.{% endblock %}
+{% block meta %}
+  <link rel="canonical" href="{{ site_url() }}{{ url_for('owner_page', slug=o.slug) }}">
+  <meta property="og:title" content="{% if who %}{{ who }}: {% endif %}{{ 'rancho' if n == 1 else 'ranchos' }} em {{ CITY_NAME }} 🏡">
+  <meta property="og:description" content="{{ ranchos|map(attribute='name')|join(' · ') }}">
+  <meta property="og:type" content="website">
+  {% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% endif %}
+{% endblock %}
+{% block content %}
+<section class="wrap cat-page owner-page">
+  <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › {{ who or 'Ranchos' }}</nav>
+  <h1>{{ who or ('Rancho' if n == 1 else 'Ranchos') }}</h1>
+  <p class="cat-intro">{{ n }} {{ 'rancho' if n == 1 else 'ranchos' }} para alugar em {{ CITY_NAME }}. Veja as fotos, os preços e a agenda, e chame no WhatsApp para reservar.</p>
+  <ul class="grid">
+    {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}{% endfor %}
+  </ul>
+  <p class="owner-page-more"><a class="link" href="{{ url_for('index') }}#ranchos">Ver todos os ranchos de {{ CITY_NAME }}</a></p>
+</section>
+{% endblock %}

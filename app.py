@@ -8,6 +8,7 @@ Admin:    /admin — cadastro de ranchos, fotos, destaque/verificado, pedidos de
 Donos:    contas criadas pelo admin em /admin/donos. O dono entra no mesmo /admin/login
           (login + senha) e só vê e edita os próprios ranchos; rancho novo dele fica
           pendente até o admin aprovar. Verificado/destaque continuam só com o admin.
+          Cada dono tem uma página pública /de/<slug> só com os ranchos dele (bio do Instagram).
 
 Banco:    DATABASE_URL (Postgres em produção). Sem ela, usa SQLite local.
 Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunny
@@ -314,6 +315,7 @@ class Owner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(120), unique=True, nullable=False, index=True)  # e-mail ou usuário, minúsculo
     name = db.Column(db.String(120), default="")
+    slug = db.Column(db.String(120), index=True)  # endereço da página pública /de/<slug>
     password_hash = db.Column(db.String(255), nullable=False)
     must_change = db.Column(db.Boolean, default=True)
     active = db.Column(db.Boolean, default=True)
@@ -534,6 +536,7 @@ with app.app_context():
         ("provider_photo", "section", "VARCHAR(60) DEFAULT ''"),
         ("provider", "owner_id", "INTEGER REFERENCES owner(id) ON DELETE SET NULL"),
         ("provider", "delivery", "VARCHAR(200) DEFAULT ''"),
+        ("owner", "slug", "VARCHAR(120)"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -710,6 +713,13 @@ def public_ranchos():
     return Rancho.query.filter(Rancho.active.is_(True), Rancho.pending.isnot(True))
 
 
+def owner_slug(o, wanted=""):
+    """Endereço da página do dono (/de/<slug>). Conta antiga ganha um na primeira vez que o link aparece."""
+    if wanted or not o.slug:
+        o.slug = unique_slug(wanted or o.name or o.login.split("@")[0], exclude_id=o.id, model=Owner)
+    return o.slug
+
+
 def set_verified(r, on):
     """Liga ou desliga o selo. A data da visita aparece no anúncio."""
     if on and not r.verified:
@@ -762,7 +772,7 @@ def log_event(rancho_id, kind, provider_id=None):
 # Origem das visitas
 # ---------------------------------------------------------------------------
 # Páginas onde o turista pode "chegar" ao site (as outras rotas não definem a origem).
-LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "anuncie", "services", "provider_page", "about", "safety_guide", "fishing"}
+LANDING_ENDPOINTS = {"index", "rancho", "category", "group_list", "owner_page", "anuncie", "services", "provider_page", "about", "safety_guide", "fishing"}
 # Site de onde veio (pelo Referer) -> nome da origem
 REFERRER_SOURCES = [
     (re.compile(r"(^|\.)instagram\.com$"), "instagram"),
@@ -1415,6 +1425,17 @@ def group_list():
                            wa_link=f"https://wa.me/?text={quote(share_text)}" if ranchos else "")
 
 
+@app.route("/de/<slug>")
+def owner_page(slug):
+    """Só os ranchos de um dono, para ele pôr na bio do Instagram ou mandar para os clientes.
+    Segue a conta: rancho novo dele entra sozinho, sem trocar o link."""
+    o = Owner.query.filter_by(slug=slug).first_or_404()
+    ranchos = default_order(public_ranchos().filter_by(owner_id=o.id).all())
+    if not ranchos:
+        abort(404)
+    return render_template("owner_page.html", o=o, ranchos=ranchos)
+
+
 @app.route("/rancho/<slug>")
 def rancho(slug):
     r = Rancho.query.filter_by(slug=slug).first_or_404()
@@ -1920,6 +1941,9 @@ def admin_home():
     if o:
         ranchos = Rancho.query.filter_by(owner_id=o.id).order_by(Rancho.name).all()
         c30 = counts_since(since)
+        if not o.slug:
+            owner_slug(o)
+            db.session.commit()
         return render_template("admin/owner_home.html", ranchos=ranchos, c30=c30, owner=o)
     ranchos = Rancho.query.order_by(Rancho.pending.desc(), Rancho.featured.desc(), Rancho.name).all()
     c30 = counts_since(since)
@@ -2501,6 +2525,7 @@ def admin_owners():
             o.set_password(password)
             db.session.add(o)
             db.session.flush()
+            owner_slug(o)
             _assign_ranchos(o, [to_int(x) for x in request.form.getlist("ranchos")])
             db.session.commit()
             flash(f"Conta criada. Login: {login} · Senha provisória: {password} · Anote e passe para o dono: "
@@ -2524,11 +2549,15 @@ def admin_owner(oid):
         else:
             o.login = login
             o.name = request.form.get("name", "").strip()[:120]
+            owner_slug(o, request.form.get("slug", "").strip())
             o.active = bool(request.form.get("active"))
             _assign_ranchos(o, [to_int(x) for x in request.form.getlist("ranchos")])
             db.session.commit()
             flash("Conta salva.", "ok")
             return redirect(url_for("admin_owner", oid=o.id))
+    if not o.slug:
+        owner_slug(o)
+        db.session.commit()
     ranchos = Rancho.query.order_by(Rancho.name).all()
     return render_template("admin/owner.html", o=o, ranchos=ranchos,
                            locked=locked_minutes(throttle_key(o.login)))
