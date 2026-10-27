@@ -884,11 +884,16 @@ SOURCE_LABELS = {
     "meta": "Instagram/Facebook (link com fbclid)",
     "whatsapp": "WhatsApp Web",
     "outros-buscadores": "Outros buscadores",
+    "chatgpt": "ChatGPT",
 }
+# Etiquetas que os próprios apps colocam no link (?utm_source=ig no link da bio do Instagram,
+# ?utm_source=chatgpt.com nos links do ChatGPT) -> mesma origem do Referer
+SOURCE_ALIASES = {"ig": "instagram", "chatgpt-com": "chatgpt"}
 
 
 def clean_source(v):
-    return re.sub(r"[^a-z0-9_-]+", "-", (v or "").strip().lower()).strip("-")[:40]
+    v = re.sub(r"[^a-z0-9_-]+", "-", (v or "").strip().lower()).strip("-")[:40]
+    return SOURCE_ALIASES.get(v, v)
 
 
 def detect_source():
@@ -916,8 +921,10 @@ def detect_source():
 
 @app.before_request
 def track_source():
-    """Guarda a origem na sessão na chegada ao site e conta um "visitante" por sessão.
-    Um link com etiqueta ou de anúncio clicado depois troca a origem (vale o último anúncio)."""
+    """Guarda a origem na sessão na chegada ao site e marca um "visitante" por sessão.
+    Um link com etiqueta ou de anúncio clicado depois troca a origem (vale o último anúncio).
+    A contagem só acontece quando a página roda JavaScript (count_visit): robôs que se passam
+    por navegador não guardam cookie e contavam como uma pessoa nova a cada acesso."""
     if request.method != "GET" or request.endpoint not in LANDING_ENDPOINTS:
         return
     if CANONICAL_HOST and request.host != CANONICAL_HOST:  # *.web.app / *.run.app não entram na conta
@@ -928,7 +935,14 @@ def track_source():
     new = detect_source()
     if session.get("src") != new:
         session["src"] = new
+        session["visit_pending"] = True
+
+
+@app.route("/v", methods=["POST"])
+def count_visit():
+    if session.pop("visit_pending", None):
         log_event(None, "visit")
+    return "", 204
 
 
 def month_start(dt):
@@ -1272,11 +1286,11 @@ def source_stats(since):
          .filter(Event.created_at >= since).group_by(Event.source, Event.kind))
     rows = {}
     for src, kind, n in q.all():
-        src = src or "sem-registro"  # eventos de antes de existir a origem
+        src = SOURCE_ALIASES.get(src, src) or "sem-registro"  # eventos de antes de existir a origem
         row = rows.setdefault(src, {"source": src, "label": SOURCE_LABELS.get(src, src),
                                     "visit": 0, "view": 0, "whatsapp": 0, "fav": 0})
         if kind in row:
-            row[kind] = n
+            row[kind] += n
     if "sem-registro" in rows:
         rows["sem-registro"]["label"] = "Antes do registro de origem"
     return sorted(rows.values(), key=lambda r: (-r["whatsapp"], -r["visit"], -r["view"]))
