@@ -73,6 +73,30 @@
   <div class="kpi"><strong>{{ leads|selectattr('handled', 'equalto', false)|list|length }}</strong><span>donos querendo anunciar</span></div>
 </div>
 
+<h2 id="ranking">Ranchos mais visitados</h2>
+{% if ranking and ranking[0].pageviews %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th class="num">#</th><th>Rancho</th><th class="num">Visualizações</th><th class="num">Pessoas</th><th class="num">WhatsApp</th><th class="num">Chamaram</th></tr></thead>
+  <tbody>
+  {% for x in ranking %}
+    <tr class="{% if not x.r.active %}off{% endif %}">
+      <td class="num"><strong>{{ loop.index }}º</strong></td>
+      <td><a href="{{ url_for('admin_report', rid=x.r.id) }}" class="strong">{{ x.r.name }}</a></td>
+      <td class="num"><strong>{{ x.pageviews }}</strong></td>
+      <td class="num">{{ x.people }}</td>
+      <td class="num">{{ x.whatsapp }}</td>
+      <td class="num">{{ x.rate }}%</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Pessoas = quem abriu o anúncio (conta 1 vez por dia). Chamaram = de cada 100 pessoas que viram, quantas clicaram no WhatsApp. Clique no nome para ver o relatório mês a mês.</p>
+{% else %}
+  <p class="muted">Ainda sem visitas aos anúncios nos últimos 30 dias.</p>
+{% endif %}
+
 <h2 id="origem">De onde vêm os turistas</h2>
 {% if sources %}
 <div class="table-wrap">

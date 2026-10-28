@@ -2328,8 +2328,18 @@ def admin_home():
         "servico": sum(n for (_, k), n in c30.items() if k == "servico"),
         "fav": sum(n for (_, k), n in c30.items() if k == "fav"),
     }
+    # Ranking dos mais visitados: visualizações (view + reopen), desempate por pessoas e WhatsApp
+    ranking = []
+    for r in ranchos:
+        if r.pending:
+            continue
+        people, wa = c30.get((r.id, "view"), 0), c30.get((r.id, "whatsapp"), 0)
+        ranking.append({"r": r, "pageviews": people + c30.get((r.id, "reopen"), 0), "people": people,
+                        "whatsapp": wa, "rate": round(100 * wa / people) if people else 0})
+    ranking.sort(key=lambda x: (-x["pageviews"], -x["people"], -x["whatsapp"], x["r"].name))
     return render_template("admin/dashboard.html", ranchos=ranchos, c30=c30, leads=leads, totals=totals,
-                           sources=source_stats(since), billing=billing_rows(ranchos), today=today_br())
+                           sources=source_stats(since), billing=billing_rows(ranchos), today=today_br(),
+                           ranking=ranking)
 
 
 def visible_bookings():
