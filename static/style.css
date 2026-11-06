@@ -953,6 +953,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .review { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
 .review p { margin: 0; }
 .review p + p { margin-top: 6px; }
+.review-reply { margin-top: 10px; padding: 2px 0 2px 12px; border-left: 3px solid var(--rio-2); font-size: 15px; }
+.review-reply p { margin: 4px 0 0; }
+.review-reply-edit { margin-top: 10px; }
+.review-reply-edit summary { cursor: pointer; font-weight: 650; padding: 10px 0; }
+.review-reply-edit .form { gap: 10px; }
 .review-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 /* Escolha das estrelas: os rádios vêm da 5 para a 1 e a linha é invertida, então a marcada pinta as de antes */
 .stars-input { border: 0; padding: 0; margin: 0; }

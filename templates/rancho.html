@@ -169,7 +169,10 @@
           <li class="review">
             <p class="review-head"><strong>{{ rv.first_name }}</strong> {{ stars(rv.stars) }}</p>
             <p class="small muted">{% if rv.stay_label %}Ficou em {{ rv.stay_label }}{% endif %}{% if rv.booking_id %}{{ ' · ' if rv.stay_label }}Reservou pelo site{% endif %}</p>
-            <p>{{ rv.text }}</p>
+            {% if rv.text %}<p>{{ rv.text }}</p>{% endif %}
+            {% if rv.reply and rv.reply_status == 'aprovada' %}
+            <div class="review-reply"><strong>Resposta do rancho</strong><p>{{ rv.reply }}</p></div>
+            {% endif %}
           </li>
           {% endfor %}
         </ul>

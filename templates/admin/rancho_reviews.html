@@ -38,7 +38,26 @@
   <li class="bk">
     <div class="bk-head"><strong>{{ rv.first_name }}</strong><span class="badge{{ ' badge-ok' if rv.status == 'aprovada' }}">{{ STATUS[rv.status] }}</span></div>
     <p>{{ stars(rv.stars) }} {% if rv.stay_label %}<span class="small muted">· {{ rv.stay_label }}</span>{% endif %}</p>
-    <p>“{{ rv.text }}”</p>
+    {% if rv.text %}<p>“{{ rv.text }}”</p>{% endif %}
+    {% if rv.status == 'aprovada' %}
+    {% if rv.reply %}
+    <div class="review-reply">
+      <strong>Sua resposta</strong> <span class="badge{{ ' badge-ok' if rv.reply_status == 'aprovada' }}">{{ {'aprovada': 'No site', 'pendente': 'Esperando aprovação', 'recusada': 'Não publicada'}[rv.reply_status] }}</span>
+      <p>{{ rv.reply }}</p>
+    </div>
+    {% endif %}
+    <details class="review-reply-edit">
+      <summary>{{ 'Mudar a resposta' if rv.reply else 'Responder' }}</summary>
+      <form method="post" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="reply_to" value="{{ rv.id }}">
+        <label>Sua resposta aparece embaixo da avaliação, para todo mundo ver
+          <textarea name="reply" rows="4" maxlength="1000">{{ rv.reply }}</textarea></label>
+        <p class="small muted">{% if not is_admin() %}A nossa equipe confere antes de publicar. {% endif %}Explique o que aconteceu e o que mudou, sem expor o hóspede.{% if rv.reply %} Para tirar a resposta, apague o texto e envie.{% endif %}</p>
+        <button class="btn btn-dark btn-sm">Enviar resposta</button>
+      </form>
+    </details>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

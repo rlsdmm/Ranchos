@@ -11,9 +11,8 @@
     <a class="btn btn-dark" href="{{ url_for('rancho', slug=r.slug) }}">Ver o {{ r.name }}</a>
   {% else %}
     <h1>Como foi no {{ r.name }}?</h1>
-    <p class="muted">Sua opinião ajuda outras famílias a escolher o rancho. Leva 1 minuto.</p>
+    <p class="muted">Toque nas estrelas e envie. Sua opinião ajuda outras famílias a escolher o rancho.</p>
     <form method="post" class="form review-form">
-      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <fieldset class="stars-input">
         <legend>Sua nota</legend>
         {# Da 5 para a 1 por causa do CSS: a estrela marcada pinta as anteriores #}
@@ -24,10 +23,10 @@
           {% endfor %}
         </div>
       </fieldset>
-      <label>Conte como foi <span class="muted">(o rancho, a limpeza, o atendimento do dono…)</span>
-        <textarea name="text" rows="5" required minlength="10" maxlength="1000">{{ form.get('text', '') }}</textarea></label>
-      <label>Seu nome <span class="muted">(aparece só o primeiro nome)</span>
-        <input type="text" name="name" required maxlength="60" autocomplete="given-name" value="{{ form.get('name', name) }}"></label>
+      <label>Quer contar como foi? <span class="muted">(opcional)</span>
+        <textarea name="text" rows="3" maxlength="1000" placeholder="O rancho, a limpeza, o atendimento do dono…">{{ form.get('text', '') }}</textarea></label>
+      <label>Seu nome <span class="muted">(opcional, aparece só o primeiro)</span>
+        <input type="text" name="name" maxlength="60" autocomplete="given-name" value="{{ form.get('name', name) }}"></label>
       <button class="btn btn-sun btn-block" type="submit">Enviar avaliação</button>
     </form>
   {% endif %}

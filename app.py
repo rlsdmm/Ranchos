@@ -22,6 +22,7 @@ Fotos:    com BUNNY_STORAGE_URL/BUNNY_STORAGE_KEY/BUNNY_CDN_URL vão para o Bunn
 import hashlib
 import hmac
 import io
+import json
 import os
 import re
 import random
@@ -193,6 +194,7 @@ TRIAL_MONTHS = 3
 PRICE_MONTH = "R$ 19,90"
 PRICE_YEAR = "R$ 200"
 BILLING_NOTICE_DAYS = 7  # o rancho entra na lista de cobrança do painel essa quantidade de dias antes de vencer
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")  # tópico do app ntfy no celular do admin; vazio = sem aviso
 PIX_KEY = os.environ.get("PIX_KEY", "")  # vai na mensagem de cobrança; vazio = mensagem sem Pix
 ICAL_SYNC_HOURS = 2  # agenda externa (Google Agenda, Airbnb...) é copiada de novo depois desse tempo
 
@@ -409,6 +411,8 @@ class Review(db.Model):
     text = db.Column(db.String(1000), default="")
     stay = db.Column(db.String(7), default="")  # mês da estadia, "2026-11"
     status = db.Column(db.String(20), default="convite", index=True)  # REVIEW_STATUS
+    reply = db.Column(db.String(1000), default="")  # resposta do dono
+    reply_status = db.Column(db.String(20), default="")  # pendente/aprovada/recusada: também passa pelo admin
     created_at = db.Column(db.DateTime, default=now_utc)
     submitted_at = db.Column(db.DateTime)
 
@@ -620,6 +624,8 @@ with app.app_context():
         ("provider", "delivery", "VARCHAR(200) DEFAULT ''"),
         ("owner", "slug", "VARCHAR(120)"),
         ("rancho", "booking_on", "BOOLEAN DEFAULT FALSE"),
+        ("review", "reply", "VARCHAR(1000) DEFAULT ''"),
+        ("review", "reply_status", "VARCHAR(20) DEFAULT ''"),
     ]:
         if column not in {c["name"] for c in db.inspect(db.engine).get_columns(table)}:
             try:
@@ -725,6 +731,19 @@ def csrf_token():
     if "_csrf" not in session:
         session["_csrf"] = secrets.token_urlsafe(24)
     return session["_csrf"]
+
+
+def notify_admin(title, message, click=""):
+    """Notificação no celular do admin (app ntfy). Falha aqui nunca atrapalha quem está no site.
+    Roda dentro da requisição: no Cloud Run a CPU para depois da resposta, então thread não garante o envio."""
+    if not NTFY_TOPIC:
+        return
+    body = json.dumps({"topic": NTFY_TOPIC, "title": title, "message": message, "click": click}).encode()
+    req = urllib.request.Request("https://ntfy.sh/", data=body, headers={"User-Agent": f"{SITE_NAME} (aviso)"})
+    try:
+        urllib.request.urlopen(req, timeout=4).close()
+    except Exception as e:
+        app.logger.warning("aviso ntfy falhou: %s", e)
 
 
 def check_csrf():
@@ -1311,7 +1330,7 @@ def inject_globals():
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year,
                 pending_catches=lambda: FishCatch.query.filter_by(approved=False).count(),
                 pending_bookings=lambda: visible_bookings().filter(Booking.status == "pedido").count(),
-                pending_reviews=lambda: Review.query.filter_by(status="pendente").count())
+                pending_reviews=lambda: Review.query.filter(reviews_waiting()).count())
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc
@@ -1692,7 +1711,8 @@ def rancho(slug):
                                  "reviewCount": r.rating[1], "bestRating": 5, "worstRating": 1}
         ld["review"] = [{"@type": "Review", "author": {"@type": "Person", "name": rv.first_name},
                          "reviewRating": {"@type": "Rating", "ratingValue": rv.stars, "bestRating": 5},
-                         "reviewBody": rv.text, "datePublished": rv.submitted_at.date().isoformat()}
+                         "datePublished": rv.submitted_at.date().isoformat(),
+                         **({"reviewBody": rv.text} if rv.text else {})}
                         for rv in reviews[:5]]
     faq = rancho_faq(r)
     lds = [breadcrumb_ld(("Ranchos", "/"), (r.name, f"/rancho/{r.slug}")), faq_ld(faq)]
@@ -1835,6 +1855,11 @@ REVIEW_STATUS = {"convite": "Convite enviado", "pendente": "Esperando aprovaçã
                  "recusada": "Não publicada"}
 
 
+def reviews_waiting():
+    """Filtro do que espera o admin: avaliação nova ou resposta nova do dono."""
+    return db.or_(Review.status == "pendente", Review.reply_status == "pendente")
+
+
 def booking_reviewable(b):
     return b.status == "confirmada" and b.end <= today_br()
 
@@ -1842,13 +1867,13 @@ def booking_reviewable(b):
 def review_form(rancho, review, booking=None):
     """Formulário de avaliação. review já existe (convite) ou é criada no envio (reserva)."""
     done = review is not None and review.status != "convite"
+    # Sem check_csrf: quem envia já tem o link secreto, e o WhatsApp pode perder o cookie entre abrir e enviar
     if request.method == "POST" and not done:
-        check_csrf()
         stars = to_int(request.form.get("stars"))
         text = request.form.get("text", "").strip()[:1000]
         name = request.form.get("name", "").strip()[:60]
-        if not 1 <= stars <= 5 or len(text) < 10 or not name:
-            flash("Escolha as estrelas, escreva pelo menos uma frase e diga seu nome.", "error")
+        if not 1 <= stars <= 5:
+            flash("Toque nas estrelas para dar a sua nota.", "error")
         else:
             if review is None:
                 review = Review(rancho_id=rancho.id, booking_id=booking.id, stay=f"{booking.start:%Y-%m}")
@@ -1857,6 +1882,8 @@ def review_form(rancho, review, booking=None):
             review.status, review.submitted_at = "pendente", now_utc()
             db.session.commit()
             done = True
+            notify_admin(f"Avaliação nova: {rancho.name}", f"{'★' * stars}{'☆' * (5 - stars)} esperando você publicar.",
+                         f"{site_url()}{url_for('admin_reviews')}")
     name = review.name if review and review.name else (booking.name if booking else "")
     return render_template("review.html", r=rancho, review=review, done=done, name=name,
                            form=request.form if request.method == "POST" else {})
@@ -1879,7 +1906,7 @@ def review_booking(token):
 def review_ask_text(name, rancho, link):
     first = name.split()[0] if name else ""
     return (f"Oi{(' ' + first) if first else ''}! Obrigado por ficar no {rancho.name}. Conta pra gente como foi? "
-            f"Sua avaliação ajuda outras famílias a escolher, leva 1 minuto: {link}")
+            f"É só tocar nas estrelas, leva 10 segundos: {link}")
 
 
 @app.route("/rancho/<slug>/agenda.json")
@@ -2404,6 +2431,16 @@ def admin_rancho_reviews(rid):
     """Avaliações do rancho e convite para quem fechou fora do site (pelo WhatsApp)."""
     r = editable_rancho(rid)
     invite = None
+    if "reply_to" in request.form:
+        rv = r.reviews.filter_by(id=to_int(request.form["reply_to"]), status="aprovada").first() or abort(404)
+        rv.reply = request.form.get("reply", "").strip()[:1000]
+        rv.reply_status = "" if not rv.reply else "aprovada" if is_admin() else "pendente"
+        db.session.commit()
+        if rv.reply_status == "pendente":
+            notify_admin(f"Resposta do dono: {r.name}", "Esperando você publicar.", f"{site_url()}{url_for('admin_reviews')}")
+        flash("Resposta tirada." if not rv.reply else "Resposta publicada." if is_admin()
+              else "Resposta enviada. Ela aparece no site depois que a nossa equipe conferir.", "ok")
+        return redirect(url_for("admin_rancho_reviews", rid=r.id))
     if request.method == "POST":
         name = request.form.get("name", "").strip()[:60]
         stay = request.form.get("stay", "")[:7]
@@ -2429,9 +2466,13 @@ def admin_reviews():
             rv.status = "aprovada" if action == "aprovar" else "recusada"
             db.session.commit()
             flash(f"Avaliação de {rv.first_name} {'publicada' if action == 'aprovar' else 'tirada do site'}.", "ok")
+        elif action in ("resposta_ok", "resposta_fora") and rv.reply:
+            rv.reply_status = "aprovada" if action == "resposta_ok" else "recusada"
+            db.session.commit()
+            flash(f"Resposta do dono {'publicada' if action == 'resposta_ok' else 'tirada do site'}.", "ok")
         return redirect(url_for("admin_reviews"))
-    pending = Review.query.filter_by(status="pendente").order_by(Review.submitted_at).all()
-    recent = (Review.query.filter(Review.status.in_(("aprovada", "recusada")))
+    pending = Review.query.filter(reviews_waiting()).order_by(Review.submitted_at).all()
+    recent = (Review.query.filter(Review.status.in_(("aprovada", "recusada")), Review.reply_status != "pendente")
               .order_by(Review.submitted_at.desc()).limit(40).all())
     return render_template("admin/reviews.html", pending=pending, recent=recent, STATUS=REVIEW_STATUS)
 
