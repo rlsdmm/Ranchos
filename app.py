@@ -1412,9 +1412,11 @@ def index():
         ranchos = default_order(ranchos)
 
     filtering = bool(cap or max_price or wanted)
+    # Quadro "Próximo feriado" desligado: os donos não mantêm a agenda, então a lista de livres engana.
+    # Para religar, troque None por holiday_block().
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
                            wanted=wanted, order=order, filtering=filtering, hero=hero,
-                           categories=categories_with_ranchos(), holiday=holiday_block(),
+                           categories=categories_with_ranchos(), holiday=None,
                            updated=last_update(public_ranchos().all()), lds=[site_ld()])
 
 
