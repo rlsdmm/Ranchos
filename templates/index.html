@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_card.html" import card with context %}
+{% from "_pesca_hoje.html" import pesca_hoje with context %}
 {% block meta %}
   <meta property="og:title" content="Ranchos para alugar em {{ CITY_NAME }}">
   <meta property="og:description" content="Ranchos verificados, beira-rio, com piscina e rampa para barco. Fale direto com o dono.">
@@ -90,7 +91,10 @@
   <ul class="grid">
     {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}
     {# Feriado depois dos 3 primeiros: no celular, os ranchos aparecem logo de cara #}
-    {% if holiday and (loop.index == 3 or (loop.last and loop.length < 3)) %}<li class="grid-wide">{{ holiday_box() }}</li>{% endif %}
+    {% if loop.index == 3 or (loop.last and loop.length < 3) %}
+      {% if holiday %}<li class="grid-wide">{{ holiday_box() }}</li>{% endif %}
+      {% if not filtering %}<li class="grid-wide">{{ pesca_hoje(compact=True) }}</li>{% endif %}
+    {% endif %}
     {% endfor %}
   </ul>
   {% else %}

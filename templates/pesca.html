@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_card.html" import card with context %}
+{% from "_pesca_hoje.html" import pesca_hoje with context %}
 {% block title %}Pesca em {{ CITY_NAME }}: peixes do Rio Grande, piracema e regras | {{ SITE_NAME }}{% endblock %}
 {% block description %}Peixes que dão na represa de {{ CITY_NAME }} (tucunaré, corvina, traíra, piau, curimbatá e mais), o que pode pescar na piracema, licença de pesca e fotos de pescarias de quem veio.{% endblock %}
 {% block meta %}
@@ -23,6 +24,8 @@
   <p class="fish-alert"><strong>Estamos na piracema</strong> (1º de novembro a 28 de fevereiro). Na represa, só pode pescar as espécies
     que não são nativas, como tucunaré, corvina, tilápia e oscar. <a class="link" href="#regras">Veja as regras</a>.</p>
   {% endif %}
+
+  {{ pesca_hoje() }}
 
   <section id="peixes" class="fish-sec">
     <h2>Peixes que dão aqui</h2>

@@ -5,6 +5,10 @@ IN IBAMA nº 25/2009 (defeso da bacia do rio Paraná, que inclui o Rio Grande e 
 Fotos do Wikimedia Commons, com autor e licença em CREDITO; troque pelas fotos daqui quando tiver.
 """
 
+# Ponto da previsão do quadro "Pesca hoje" (o mesmo que o Nuvem usa para Miguelópolis)
+PREVISAO_LAT, PREVISAO_LON = -20.17944, -48.03194
+NUVEM_PESCA = "https://rlsdmm.github.io/nuvem/#pesca"
+
 REGRAS_CONFERIDAS = "outubro de 2026"
 FONTE_DEFESO = ("https://www.gov.br/ibama/pt-br/assuntos/biodiversidade/biodiversidade-aquatica/arquivos/"
                 "defesos-continentais/2025-01-20_bacia_hidrografica_do_rio_parana_in_ibama_n-o-25_2009.pdf")
