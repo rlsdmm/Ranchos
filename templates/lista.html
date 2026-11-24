@@ -11,7 +11,7 @@
   <meta property="og:type" content="website">
   {% endif %}
 {% endblock %}
-{% block og_image %}{% if ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block og_image %}{% if ranchos and ranchos[0].cover %}<meta property="og:image" content="{{ ranchos[0].cover.url(absolute=True) }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block content %}
 <section class="wrap list-page" id="lista">
   <nav class="crumbs"><a href="{{ url_for('index') }}">Todos os ranchos</a> › Lista para o grupo</nav>
