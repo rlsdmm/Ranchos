@@ -1392,6 +1392,7 @@ def index():
 
     ranchos = public_ranchos().all()
     total = len(ranchos)
+    facts, faq = home_facts(ranchos)
     # Foto do topo: capa de um rancho sorteado a cada visita. Foto em pé também entra: com o
     # verde por cima o corte fica bom, e no celular o topo é alto e ela encaixa melhor.
     covers = [r for r in ranchos if r.cover]
@@ -1417,8 +1418,27 @@ def index():
     # Para religar, troque None por holiday_block().
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
                            wanted=wanted, order=order, filtering=filtering, hero=hero,
-                           categories=categories_with_ranchos(), holiday=None,
-                           updated=last_update(public_ranchos().all()), lds=[site_ld()])
+                           categories=categories_with_ranchos(), holiday=None, facts=facts, faq=faq,
+                           price_all=price_range(public_ranchos().all()),
+                           updated=last_update(public_ranchos().all()),
+                           lds=[site_ld()] + ([faq_ld(faq)] if faq and not filtering else []))
+
+
+def home_facts(ranchos):
+    """Resumo e perguntas da página inicial, com os números do catálogo inteiro (sem filtro).
+    É o texto que faz a página responder buscas como "ranchos para alugar em <cidade>"."""
+    if not ranchos:
+        return [], []
+    facts, faq = category_facts({"title": "Ranchos"}, ranchos)
+    city = CITY_NAME
+    faq.insert(0, (f"Como alugar um rancho em {city}?",
+                   "Escolha o rancho aqui no site, veja as fotos, o preço e o que ele tem, e chame o dono pelo "
+                   "WhatsApp no botão do anúncio. Datas, valor e sinal são combinados direto com o dono, sem "
+                   "intermediário e sem taxa para quem aluga."))
+    faq.insert(1, (f"Quantos ranchos para alugar tem em {city}?",
+                   f"O site tem {plural(len(ranchos), 'rancho', 'ranchos')} no ar, com fotos e contato do dono. "
+                   "A lista é atualizada sempre que um rancho entra ou muda o anúncio."))
+    return facts, faq
 
 
 def holiday_block():

@@ -1031,3 +1031,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .fc-foot { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 15px; }
 .fc-foot .muted { flex-basis: 100%; font-size: 13px; }
 @media (max-width: 640px) { .fishcast { padding: 18px 16px; } .fishcast h2 { font-size: 21px; } .fc-hour { font-size: 19px; } }
+
+/* Texto "Alugar rancho em <cidade>" da página inicial */
+.home-about { margin-top: 44px; margin-bottom: 8px; }
+.home-about h2 { font-size: 26px; font-weight: 800; font-stretch: 108%; }
+.home-about .faq { margin-top: 20px; }
+@media (max-width: 640px) { .home-about { margin-top: 32px; } .home-about h2 { font-size: 22px; } }

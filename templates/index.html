@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% from "_card.html" import card with context %}
 {% from "_pesca_hoje.html" import pesca_hoje with context %}
+{# Título e descrição com o número de ranchos e a faixa de preço: é o que faz clicar no resultado do Google #}
+{% block title %}Ranchos para alugar em {{ CITY_NAME }}{% if total > 1 %}: {{ total }} opções com fotos e preço{% endif %}{% endblock %}
+{% block description %}{% if total > 1 %}{{ total }} ranchos para alugar em {{ CITY_NAME }}{% if price_all %}, fim de semana {{ price_all }}{% endif %}. Beira-rio, piscina e rampa para barco. Fale direto com o dono pelo WhatsApp, sem taxa.{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block meta %}
   <meta property="og:title" content="Ranchos para alugar em {{ CITY_NAME }}">
   <meta property="og:description" content="Ranchos verificados, beira-rio, com piscina e rampa para barco. Fale direto com o dono.">
@@ -123,6 +126,20 @@
   </nav>
   {% endif %}
 </section>
+
+{% if faq %}
+<section class="wrap home-about" aria-labelledby="sobre-title">
+  <h2 id="sobre-title">Alugar rancho em {{ CITY_NAME }}</h2>
+  {# Números do próprio catálogo, os mesmos das páginas por tipo #}
+  <p class="cat-facts">{{ facts[0] }}{% if facts|length > 1 %}: {{ facts[1:]|join('; ') }}{% endif %}.</p>
+  <div class="faq">
+    {% for q, a in faq %}
+    <h3>{{ q }}</h3>
+    <p>{{ a }}</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <section class="safety" id="seguranca">
   <div class="wrap safety-in">
