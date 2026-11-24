@@ -1,17 +1,13 @@
 {# Quadro "Pesca hoje". Vem escondido e o static/pesca-hoje.js preenche com a previsão;
-   sem JavaScript ou sem previsão, ele nunca aparece. compact=True é a versão da página inicial. #}
-{% macro pesca_hoje(compact=False) %}
-<section class="fishcast{{ ' fishcast-compact' if compact }}" data-fishcast data-lat="{{ pesca.PREVISAO_LAT }}" data-lon="{{ pesca.PREVISAO_LON }}"
+   sem JavaScript ou sem previsão, ele nunca aparece. #}
+{% macro pesca_hoje() %}
+<section class="fishcast" data-fishcast data-lat="{{ pesca.PREVISAO_LAT }}" data-lon="{{ pesca.PREVISAO_LON }}"
          aria-labelledby="fc-title" hidden>
   <p class="fc-kicker">🎣 Melhores horários na represa</p>
   <h2 id="fc-title" data-fc-title>Pesca hoje</h2>
   <div data-fc-body aria-live="polite"></div>
-  {% if compact and piracema_now() %}
-  <p class="fc-note">Piracema até 28 de fevereiro: peixe nativo não pode. <a class="link" href="{{ url_for('fishing') }}#regras">O que pode pescar</a></p>
-  {% endif %}
   <p class="fc-foot">
     <a class="link" href="{{ pesca.NUVEM_PESCA }}" target="_blank" rel="noopener">Ver a previsão completa ↗</a>
-    {% if compact %}<a class="link" href="{{ url_for('fishing') }}">Peixes da represa</a>{% endif %}
     <span class="muted">Estimativa pelo tempo, sol e lua. Previsão do Open-Meteo.</span>
   </p>
 </section>

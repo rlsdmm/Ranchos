@@ -1013,8 +1013,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Quadro "Pesca hoje" (preenchido pelo pesca-hoje.js) */
 .fishcast { margin-top: 22px; padding: 20px 22px; background: var(--card); border: 1.5px solid var(--line); border-left: 5px solid var(--rio-2); border-radius: var(--r-lg); max-width: 72ch; }
 .fishcast[hidden] { display: none; }
-.grid-wide:has(> .fishcast[hidden]:only-child) { display: none; }
-.grid-wide .fishcast { margin-top: 0; max-width: none; }
 .fc-kicker { margin: 0 0 2px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--rio-2); }
 .fishcast h2 { font-size: 24px; font-weight: 800; font-stretch: 105%; margin-bottom: 12px; }
 .fc-windows { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
@@ -1027,7 +1025,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .fc-days [aria-current] { color: var(--ink); font-weight: 700; }
 .fc-moon::before { content: "🌙 "; }
 .fc-alert { margin: 0 0 10px; padding: 10px 12px; border-radius: var(--r); background: #fdecea; color: #8a2a24; font-weight: 600; font-size: 15px; }
-.fc-note { margin: 0 0 10px; font-size: 15px; }
 .fc-foot { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 15px; }
 .fc-foot .muted { flex-basis: 100%; font-size: 13px; }
 @media (max-width: 640px) { .fishcast { padding: 18px 16px; } .fishcast h2 { font-size: 21px; } .fc-hour { font-size: 19px; } }

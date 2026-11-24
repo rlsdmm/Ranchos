@@ -1331,7 +1331,7 @@ def inject_globals():
                 pending_catches=lambda: FishCatch.query.filter_by(approved=False).count(),
                 pending_bookings=lambda: visible_bookings().filter(Booking.status == "pedido").count(),
                 pending_reviews=lambda: Review.query.filter(reviews_waiting()).count(),
-                pesca=pesca, piracema_now=lambda: in_piracema())
+                pesca=pesca)
 
 
 CANONICAL_HOST = urlparse(BASE_URL).netloc

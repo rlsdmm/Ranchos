@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% from "_card.html" import card with context %}
-{% from "_pesca_hoje.html" import pesca_hoje with context %}
 {# Título e descrição com o número de ranchos e a faixa de preço: é o que faz clicar no resultado do Google #}
 {% block title %}Ranchos para alugar em {{ CITY_NAME }}{% if total > 1 %}: {{ total }} opções com fotos e preço{% endif %}{% endblock %}
 {% block description %}{% if total > 1 %}{{ total }} ranchos para alugar em {{ CITY_NAME }}{% if price_all %}, fim de semana {{ price_all }}{% endif %}. Beira-rio, piscina e rampa para barco. Fale direto com o dono pelo WhatsApp, sem taxa.{% else %}{{ super() }}{% endif %}{% endblock %}
@@ -94,10 +93,7 @@
   <ul class="grid">
     {% for r in ranchos %}{{ card(r, eager=loop.index <= 3) }}
     {# Feriado depois dos 3 primeiros: no celular, os ranchos aparecem logo de cara #}
-    {% if loop.index == 3 or (loop.last and loop.length < 3) %}
-      {% if holiday %}<li class="grid-wide">{{ holiday_box() }}</li>{% endif %}
-      {% if not filtering %}<li class="grid-wide">{{ pesca_hoje(compact=True) }}</li>{% endif %}
-    {% endif %}
+    {% if holiday and (loop.index == 3 or (loop.last and loop.length < 3)) %}<li class="grid-wide">{{ holiday_box() }}</li>{% endif %}
     {% endfor %}
   </ul>
   {% else %}
