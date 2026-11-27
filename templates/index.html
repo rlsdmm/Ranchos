@@ -35,12 +35,14 @@
     <h1 class="hero-kicker">Ranchos para alugar em {{ CITY_NAME }}</h1>
     <p class="hero-title">Fim de semana na beira do rio</p>
     <p class="hero-sub">Escolha o rancho, veja fotos reais e fale direto com o dono pelo WhatsApp.</p>
+    {% if natal %}<a class="hero-natal" href="#ranchos">🎄 Natal e Ano-Novo: garanta seu rancho</a>{% endif %}
     <ul class="hero-trust">
       <li>Ranchos verificados</li>
       <li>Contato direto com o dono</li>
       <li>Sem taxa para quem aluga</li>
     </ul>
   </div>
+  {% if natal %}<div class="neve" aria-hidden="true">{% for i in range(26) %}<i style="left:{{ (i * 37) % 100 }}%;--t:{{ 2 + (i * 5) % 4 }}px;--o:.{{ 4 + (i * 3) % 5 }};--vento:{{ (i * 11) % 50 - 15 }}px;animation-duration:{{ 10 + (i * 7) % 11 }}s;animation-delay:-{{ (i * 13) % 19 }}s"></i>{% endfor %}</div>{% endif %}
   <svg class="waterline" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 40 C 180 10, 360 70, 540 40 S 900 10, 1080 40 S 1300 70, 1440 36 V80 H0 Z"/>
   </svg>
@@ -66,7 +68,7 @@
       <label class="fsel">
         <span>Ordenar</span>
         <select name="ordem">
-          <option value="destaque" {% if order == 'destaque' %}selected{% endif %}>Destaque</option>
+          <option value="destaque" {% if order == 'destaque' %}selected{% endif %}>Recomendados</option>
           <option value="preco" {% if order == 'preco' %}selected{% endif %}>Menor preço</option>
           <option value="capacidade" {% if order == 'capacidade' %}selected{% endif %}>Mais pessoas</option>
         </select>

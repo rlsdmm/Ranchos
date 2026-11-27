@@ -16,12 +16,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=43">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=44">
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <link rel="icon" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}{{ ' natal' if natal }}">
   <header class="topbar">
     <div class="wrap topbar-in">
       <a class="brand" href="{{ url_for('index') }}"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M13 36a19 19 0 0 1 38 0z" fill="#F5B83D"/><path d="M14 43c3-2.4 6-2.4 9 0s6 2.4 9 0 6-2.4 9 0 6 2.4 9 0M21 51c2.6-2 5.2-2 7.8 0s5.2 2 7.8 0 5.2-2 7.8 0" fill="none" stroke="#DCEBE7" stroke-width="4" stroke-linecap="round"/></svg><span>{{ SITE_NAME }}</span></a>
@@ -70,6 +70,7 @@
         {% if SITE_WHATSAPP %}<a href="https://wa.me/{{ SITE_WHATSAPP }}" rel="nofollow">Fale com a gente</a>{% endif %}
       </div>
     </div>
+    {% if natal %}<div class="wrap"><p class="boas-festas">Boas festas e um ótimo fim de ano na beira do rio!</p></div>{% endif %}
     <div class="wrap"><p class="muted small">© {{ year }} {{ SITE_NAME }}</p></div>
   </footer>
   <div class="favbar" id="favbar" hidden>

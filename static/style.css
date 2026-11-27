@@ -1034,3 +1034,69 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .home-about h2 { font-size: 26px; font-weight: 800; font-stretch: 108%; }
 .home-about .faq { margin-top: 20px; }
 @media (max-width: 640px) { .home-about { margin-top: 32px; } .home-about h2 { font-size: 22px; } }
+
+/* ---------- Acabamento (nov/2026) ---------- */
+@media (max-width: 640px) {
+  /* "Atualizado hoje" embaixo do título, sem espremer as duas colunas */
+  .results-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  /* "Procure por tipo": botões menores, cabem dois por linha */
+  .cat-links ul { gap: 6px; }
+  .cat-links a { padding: 7px 11px; font-size: 14px; gap: 6px; }
+  .cat-links a span { font-size: 12px; padding: 0 7px; }
+}
+
+/* ---------- Tema de Natal (classe "natal" no body, ver natal_on no app.py) ---------- */
+/* cordão de luzinhas embaixo do topo */
+.natal .topbar { position: relative; }
+.natal .topbar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 12px; z-index: 5; pointer-events: none;
+  background:
+    radial-gradient(circle at 9px 5px, #ffd36b 0 2.8px, rgba(255,211,107,.4) 3.6px, transparent 6px),
+    radial-gradient(circle at 27px 7px, #ff5a4a 0 2.8px, rgba(255,90,74,.4) 3.6px, transparent 6px),
+    radial-gradient(circle at 45px 5px, #8ff0b4 0 2.8px, rgba(143,240,180,.4) 3.6px, transparent 6px);
+  background-size: 54px 12px;
+  animation: natal-pisca 2.4s ease-in-out infinite;
+}
+@keyframes natal-pisca { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+/* gorrinho no sol do logo */
+.natal .topbar .brand { position: relative; }
+.natal .topbar .brand::before {
+  content: ""; position: absolute; left: 4px; top: -7px; width: 28px; height: 22px; pointer-events: none;
+  transform: rotate(-14deg);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 22'%3E%3Cpath d='M3 17 C6 8 12 2 20 3 C24 4 25 8 24 11 C21 8 17 8 15 12 L13 17Z' fill='%23d6332b'/%3E%3Crect x='1' y='15' width='17' height='5' rx='2.5' fill='%23fff'/%3E%3Ccircle cx='24.5' cy='12' r='3' fill='%23fff'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+@media (max-width: 640px) { .natal .topbar .brand::before { left: 3px; top: -5px; width: 25px; height: 20px; } }
+
+/* chamada de fim de ano na capa */
+.hero-natal {
+  display: inline-flex; align-items: center; gap: 6px; margin: 18px 0 0; padding: 8px 16px;
+  border-radius: 999px; background: #b3261e; color: #fff; font-weight: 700; font-size: 15px; text-decoration: none;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.25), 0 8px 20px -10px rgba(0,0,0,.5);
+}
+.hero-natal:hover { background: #c92f26; }
+@media (max-width: 640px) { .hero-natal { font-size: 13px; padding: 7px 13px; margin-top: 12px; } }
+
+/* neve caindo devagar sobre a capa */
+.neve { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.hero .wrap { position: relative; z-index: 1; }
+.neve i {
+  position: absolute; top: -10px; width: var(--t); height: var(--t); border-radius: 50%; opacity: var(--o);
+  background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.7);
+  animation: natal-neve linear infinite;
+}
+@keyframes natal-neve { to { transform: translate3d(var(--vento), 760px, 0); } }
+
+/* quadro do próximo feriado com cara de Natal */
+.natal .holiday { border-left-color: #b3261e; }
+.natal .holiday-kicker { color: #b3261e; }
+.natal .holiday-kicker::before { content: "🎄 "; }
+
+/* rodapé */
+.boas-festas { margin: 0 0 14px; font-weight: 800; font-stretch: 108%; font-size: 18px; color: var(--sol); }
+.boas-festas::before { content: "✨ "; }
+
+@media (prefers-reduced-motion: reduce) {
+  .natal .topbar::after { animation: none; }
+  .neve { display: none; }
+}
