@@ -26,7 +26,7 @@
         {% for a in r.amenity_list[:3] %}<span>{{ AMENITIES[a][1] }} {{ AMENITIES[a][0] }}</span>{% endfor %}
       </p>
       {% if r.price_weekend %}<p class="price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
-      {% else %}<p class="price muted">Consulte o valor</p>{% endif %}
+      {% else %}<p class="price muted">Valor a combinar</p>{% endif %}
       {% if r.agenda_fresh %}<p class="fresh">Agenda atualizada {{ r.calendar_updated_at|ago }}</p>{% endif %}
     </div>
   </a>

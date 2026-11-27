@@ -37,7 +37,7 @@ from functools import wraps
 from urllib.parse import parse_qs, quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 
-from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template,
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template, has_request_context,
                    request, session, url_for)
 from flask_sqlalchemy import SQLAlchemy
 from PIL import Image, ImageOps
@@ -123,7 +123,8 @@ DRINK_SERVICES = {"bebidas"}
 DRINK_NOTICE = "Venda proibida para menores de 18 anos. Beba com moderação."
 
 # Comodidades que viram filtro na página inicial e linha na comparação da lista
-FILTER_AMENITIES = ["beira_rio", "piscina", "rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
+# Piscina e beira-rio saíram: todos os ranchos têm, o filtro não separava nada (nov/2026)
+FILTER_AMENITIES = ["rampa", "pesca", "area_gourmet", "ar", "pet", "wifi",
                     "beach_tennis", "parquinho", "futebol", "gerador"]
 
 # Páginas por tipo de rancho (/ranchos/<slug>), feitas para as buscas do Google.
@@ -832,7 +833,7 @@ def owner_slug(o, wanted=""):
 
 
 def set_verified(r, on):
-    """Liga ou desliga o selo. A data da visita aparece no anúncio."""
+    """Liga ou desliga o selo. A data fica guardada, mas não aparece no anúncio."""
     if on and not r.verified:
         r.verified_at = now_utc()
     elif not on:
@@ -1323,9 +1324,18 @@ def counts_since(since, rancho_id=None):
     return {(r, k): n for r, k, n in q.group_by(Event.rancho_id, Event.kind).all()}
 
 
+def natal_on():
+    """Tema de Natal: liga sozinho de 20/nov a 6/jan. Para ver antes: ?natal=1 (ou ?natal=0 para desligar)."""
+    forca = request.args.get("natal") if has_request_context() else None
+    if forca in ("0", "1"):
+        return forca == "1"
+    hoje = datetime.now()
+    return (hoje.month == 11 and hoje.day >= 20) or hoje.month == 12 or (hoje.month == 1 and hoje.day <= 6)
+
+
 @app.context_processor
 def inject_globals():
-    return dict(SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
+    return dict(natal=natal_on(), SITE_NAME=SITE_NAME, CITY_NAME=CITY_NAME, SITE_WHATSAPP=SITE_WHATSAPP,
                 AMENITIES=AMENITIES, FILTER_AMENITIES=FILTER_AMENITIES, SERVICES=SERVICES, DRINK_NOTICE=DRINK_NOTICE, PHOTO_AREAS=PHOTO_AREAS, brl=brl, csrf_token=csrf_token, is_admin=is_admin,
                 current_owner=current_owner, site_url=site_url, year=datetime.now().year,
                 pending_catches=lambda: FishCatch.query.filter_by(approved=False).count(),
@@ -1418,7 +1428,7 @@ def index():
     # Para religar, troque None por holiday_block().
     return render_template("index.html", ranchos=ranchos, total=total, cap=cap, max_price=max_price,
                            wanted=wanted, order=order, filtering=filtering, hero=hero,
-                           categories=categories_with_ranchos(), holiday=None, facts=facts, faq=faq,
+                           categories=[c for c in categories_with_ranchos() if c[2] < total], holiday=None, facts=facts, faq=faq,
                            price_all=price_range(public_ranchos().all()),
                            updated=last_update(public_ranchos().all()),
                            lds=[site_ld()] + ([faq_ld(faq)] if faq and not filtering else []))
@@ -1498,7 +1508,7 @@ def category_facts(cat, ranchos):
         faq.append((f"Quanto custa o fim de semana nos {group} de {city}?",
                     f"No site, o fim de semana sai {pr}"
                     + (f", segundo os {priced} ranchos que informam o valor" if priced < n else "")
-                    + ". Feriado costuma ter pacote próprio, que aparece em cada anúncio."))
+                    + ". O valor de feriado costuma ser diferente: combine com o dono."))
     for key in ("beira_rio", "rampa", "piscina", "pet"):
         if key != cat.get("amenity"):
             k = sum(1 for r in ranchos if key in r.amenity_list)
@@ -1562,8 +1572,7 @@ def rancho_faq(r):
                                 "são combinados com o dono, sem intermediário e sem taxa do site. Antes de pagar o sinal, "
                                 "peça um contrato simples e confira se o nome no Pix é o do dono."))
     if r.verified:
-        when = f" em {r.verified_at.replace(tzinfo=timezone.utc).astimezone(BR_TZ):%d/%m/%Y}" if r.verified_at else ""
-        q.append(("O rancho é confiável?", f"A equipe do site visitou o rancho{when} e confirmou o contato do dono."))
+        q.append(("O rancho é confiável?", "A equipe do site conhece o rancho e confirmou o contato do dono."))
     return q
 
 

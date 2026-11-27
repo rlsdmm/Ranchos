@@ -213,7 +213,7 @@
         {% if r.price_weekend %}
           <p class="book-price"><strong>{{ brl(r.price_weekend) }}</strong> <span class="muted">/ fim de semana</span></p>
         {% else %}
-          <p class="book-price"><strong>Consulte o valor</strong></p>
+          <p class="book-price"><strong>Valor a combinar</strong></p>
         {% endif %}
         <dl class="book-list">
           <div><dt>Diária avulsa</dt><dd>{{ brl(r.price_night) if r.price_night else 'A combinar' }}</dd></div>
@@ -257,7 +257,7 @@
       {% if r.verified %}
       <div class="verified-note">
         <p><strong>✓ Rancho verificado</strong></p>
-        <p class="small">Nossa equipe visitou o rancho{% if r.verified_at %} em {{ (r.verified_at|local)[:10] }}{% endif %} e confirmou o contato do dono. <a class="link" href="{{ url_for('about') }}#verificacao">Como verificamos</a>. Mesmo assim, só pague o sinal com contrato e confira o nome no Pix.</p>
+        <p class="small">Nossa equipe conhece o rancho e confirmou o contato do dono. <a class="link" href="{{ url_for('about') }}#verificacao">Como verificamos</a>. Mesmo assim, só pague o sinal com contrato e confira o nome no Pix.</p>
       </div>
       {% else %}
       <div class="verified-note warn">
@@ -295,7 +295,7 @@
   <div>
     {% if r.price_weekend %}<strong>{{ brl(r.price_weekend) }}</strong> <span class="muted small">/ fim de semana</span>
     {% elif r.price_night %}<strong>{{ brl(r.price_night) }}</strong> <span class="muted small">/ diária</span>
-    {% else %}<strong>A combinar</strong>{% endif %}
+    {% else %}<strong>Valor a combinar</strong>{% endif %}
   </div>
   {% if r.booking_on %}
   <a class="btn btn-sun" href="#reservar">Pedir reserva</a>
